@@ -40,4 +40,13 @@ Select → gather (facts-first, then RAG) → draft per slot → extract claims 
 - Installed: `docling` only. Next: FastAPI/uvicorn + ingestion deps when ingestion module starts.
 
 ## 6. Open (not decided)
-Embeddings provider (local vs Gemini API). Frontend pages/components. Ingestion internals (next).
+- Embeddings provider (local vs Gemini API).
+- Frontend pages/components.
+- Ingestion internals beyond the current prototype.
+
+## 7. Current ingestion prototype (open, but implemented)
+- PDF-only v1 under `ingestion/`: sha256 fingerprinted upload copy, 3-page batch split, Docling conversion, per-batch artifacts (`.md/.json/.stats.json`), merged markdown, and rolling `result.json` checkpoints.
+- Resume policy: same PDF → same sha256 → recover completed batches from per-batch artifacts even if `result.json` is missing, then continue only pending/rebuild batches.
+- Failure policy: each batch attempts `scanned` → `light_table` → `ocr_only` under hard per-batch timeouts. If all fallbacks fail, mark that batch `failed_all_fallbacks`, skip it, and continue the document. Prototype priority is forward progress over exhaustive rescue.
+- Current output contract: preserve successful pages/batches, quarantine failed batches in stats, and continue downstream with partial ingestion when needed.
+- Optional future optimization, not default logic: re-split a failed 3-page batch into 1-page retries for finer salvage. Keep this as a targeted debug/recovery mode because it increases ingestion time and complexity.
