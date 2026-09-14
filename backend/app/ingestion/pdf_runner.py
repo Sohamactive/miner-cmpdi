@@ -14,6 +14,7 @@ import concurrent.futures
 import json
 import logging
 import multiprocessing as mp
+import queue  # stdlib Empty exception, raised by mp.Queue.get(timeout=...)
 import re
 import shutil
 import threading
@@ -32,6 +33,7 @@ from .config import (
     BATCH_PAGES,
     DIGITAL_TEXT_CHAR_THRESHOLD,
     DIGITAL_TEXT_SAMPLE_PAGES,
+    LOAD_TIMEOUT_S,
     MAX_WORKERS,
     TIMEOUTS_S,
     resolve_device,
@@ -290,19 +292,49 @@ def _scan_and_recover_batches(
 # =====================================================================
 
 
-def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> None:
-    """Run one Docling conversion in a separate process for hard timeout and crash control."""
+def _worker_convert(batch: dict, preset: str, device: str, q: mp.Queue) -> None:
+    """Run one Docling conversion in a separate process, in two reported phases.
+
+    Phase 1 (load): import torch/docling + build the preset's converter
+    (models loaded from disk/HF cache). Sends a "ready" message the instant
+    this finishes, so the parent's conversion timeout only starts counting
+    AFTER cold-start is done — it no longer eats into TIMEOUTS_S.
+
+    Phase 2 (convert): the actual page conversion. Sends a "result" message
+    with the same shape as before.
+    """
     t0 = time.perf_counter()
-    mem_before = _memory_mb()
+
+    # ---- Phase 1: load ----
     try:
         from .converter import get_converter
         from .logging_setup import setup_clean_logs
 
         setup_clean_logs(verbose=False)
-
+        mem_before = _memory_mb()
         converter = get_converter(preset=preset, device=device)
+        load_secs = round(time.perf_counter() - t0, 1)
+        q.put({"type": "ready", "load_seconds": load_secs})
+    except BaseException as exc:
+        load_secs = round(time.perf_counter() - t0, 1)
+        try:
+            q.put(
+                {
+                    "type": "load_failed",
+                    "load_seconds": load_secs,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                }
+            )
+        except Exception:
+            raise
+        return
+
+    # ---- Phase 2: convert (this is the phase timeout_s now actually measures) ----
+    t1 = time.perf_counter()
+    try:
         result = converter.convert(batch["path"])
-        secs = round(time.perf_counter() - t0, 1)
+        secs = round(time.perf_counter() - t1, 1)
 
         markdown = result.document.export_to_markdown()
         doc_dict = result.document.export_to_dict()
@@ -314,13 +346,10 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
             else None
         )
 
-        # Guard: if Docling claims success but produced zero content (can happen
-        # with PARTIAL_SUCCESS on pages with dimension=0 or encoding failures),
-        # treat it as a failure so the fallback chain continues to the next
-        # preset and ultimately PyMuPDF emergency salvage.
         is_empty = not markdown.strip()
-        queue.put(
+        q.put(
             {
+                "type": "result",
                 "ok": not is_empty,
                 "stats": {
                     "i": batch["i"],
@@ -328,7 +357,8 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
                     "path": batch["path"],
                     "preset_used": preset,
                     "status": str(result.status),
-                    "seconds": secs,
+                    "seconds": secs,  # conversion-only, load time excluded
+                    "load_seconds": load_secs,  # kept visible for diagnostics
                     "chars": len(markdown),
                     "tables": _count_tables(doc_dict),
                     "ram_delta_mb": mem_delta,
@@ -341,7 +371,7 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
             }
         )
     except BaseException as exc:
-        secs = round(time.perf_counter() - t0, 1)
+        secs = round(time.perf_counter() - t1, 1)
         mem_after = _memory_mb()
         mem_delta = (
             round(mem_after - mem_before, 1)
@@ -349,8 +379,9 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
             else None
         )
         try:
-            queue.put(
+            q.put(
                 {
+                    "type": "result",
                     "ok": False,
                     "stats": {
                         "i": batch["i"],
@@ -359,6 +390,7 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
                         "preset_used": preset,
                         "status": "failed",
                         "seconds": secs,
+                        "load_seconds": load_secs,
                         "chars": 0,
                         "tables": 0,
                         "ram_delta_mb": mem_delta,
@@ -375,117 +407,153 @@ def _worker_convert(batch: dict, preset: str, device: str, queue: mp.Queue) -> N
             raise
 
 
+def _timeout_stats(batch: dict, preset: str, timeout_s: float, phase: str) -> dict:
+    """Shared stats-dict builder for the timeout/failure exit paths below."""
+    return {
+        "i": batch["i"],
+        "pages": batch["pages"],
+        "path": batch["path"],
+        "preset_used": preset,
+        "status": "timeout",
+        "seconds": float(timeout_s),
+        "chars": 0,
+        "tables": 0,
+        "ram_delta_mb": None,
+        "error": f"hard timeout during {phase} after {timeout_s}s",
+        "cached": False,
+    }
+
+
+def _kill_proc(proc: mp.Process) -> None:
+    """Terminate, escalate to kill if needed. Shared by both timeout paths."""
+    if not proc.is_alive():
+        return
+    proc.terminate()
+    proc.join(10)
+    if proc.is_alive():
+        try:
+            proc.kill()
+        except Exception:  # noqa: BLE001, S110
+            pass
+        proc.join(10)
+
+
 def _run_one_batch(
     batch: dict,
     preset: str,
     device: str,
     timeout_s: int,
+    load_timeout_s: float = LOAD_TIMEOUT_S,
     log: logging.Logger | None = None,
     batch_pos: int | None = None,
     total_batches: int | None = None,
 ) -> tuple[dict, str, dict | None, str | None]:
-    """Launch isolated subprocess for one preset attempt with hard timeout join.
+    """Launch an isolated subprocess for one preset attempt.
 
-    Polls in 30s slices so long OCR/table runs emit a heartbeat instead of
-    looking frozen (the "stuck at Loading weights" symptom). On expiry the
-    child is terminated, then killed if it ignores terminate (torch/EasyOCR
-    on Windows can), so a hung page can never block the pipeline forever.
+    Two separately-timed phases:
+      1. load_timeout_s  — waits for the worker's "ready" signal (import +
+         model construction). NOT counted against the conversion budget.
+      2. timeout_s        — the existing per-preset budget from TIMEOUTS_S,
+         now measuring only actual Docling conversion time.
     """
     ctx = mp.get_context("spawn")
-    queue: mp.Queue = ctx.Queue()
-    proc = ctx.Process(target=_worker_convert, args=(batch, preset, device, queue))
-    started = time.perf_counter()
+    q: mp.Queue = ctx.Queue()
+    proc = ctx.Process(target=_worker_convert, args=(batch, preset, device, q))
     proc.start()
 
-    # Poll in slices: single proc.join(timeout) is silent for minutes.
     HEARTBEAT_S = 30
-    elapsed = 0.0
-    while elapsed < timeout_s:
-        proc.join(min(HEARTBEAT_S, timeout_s - elapsed))
-        elapsed = time.perf_counter() - started
-        if not proc.is_alive():
-            break
-        if log is not None:
-            log.info(
-                "[batch %s] pp %s preset=%s still running after %.0fs/%.0fs ...",
-                f"{batch_pos:02d}/{total_batches:02d}"
-                if batch_pos and total_batches
-                else "?",
-                batch["pages"],
-                preset,
-                elapsed,
-                timeout_s,
-            )
+    label = (
+        f"{batch_pos:02d}/{total_batches:02d}" if batch_pos and total_batches else "?"
+    )
 
-    if proc.is_alive():
-        proc.terminate()
-        proc.join(10)
-        if proc.is_alive():
-            # terminate() ignored (native code stuck) — force kill.
-            try:
-                proc.kill()
-            except Exception:
-                pass
-            proc.join(10)
+    # ---- Phase 1: wait for model load to finish ----
+    load_started = time.perf_counter()
+    load_elapsed = 0.0
+    ready_msg = None
+    while load_elapsed < load_timeout_s:
+        remaining = load_timeout_s - load_elapsed
         try:
-            queue.close()
-        except Exception:
+            ready_msg = q.get(timeout=min(HEARTBEAT_S, remaining))
+            break
+        except queue.Empty:
+            load_elapsed = time.perf_counter() - load_started
+            if not proc.is_alive():
+                break
+            if log is not None:
+                log.info(
+                    "[batch %s] pp %s preset=%s loading models ... %.0fs/%.0fs",
+                    label,
+                    batch["pages"],
+                    preset,
+                    load_elapsed,
+                    load_timeout_s,
+                )
+
+    if ready_msg is None:
+        # Either load_timeout_s expired, or the process died mid-load.
+        _kill_proc(proc)
+        try:
+            q.close()
+        except Exception:  # noqa: BLE001, S110
             pass
-        stats = {
-            "i": batch["i"],
-            "pages": batch["pages"],
-            "path": batch["path"],
-            "preset_used": preset,
-            "status": "timeout",
-            "seconds": float(timeout_s),
-            "chars": 0,
-            "tables": 0,
-            "ram_delta_mb": None,
-            "error": f"hard timeout after {timeout_s}s",
-            "cached": False,
-        }
+        stats = _timeout_stats(batch, preset, load_timeout_s, "model load")
         return stats, "", None, stats["error"]
 
-    if proc.exitcode not in (0, None) and queue.empty():
-        elapsed = round(time.perf_counter() - started, 1)
+    if ready_msg.get("type") == "load_failed":
+        _kill_proc(proc)
+        err = ready_msg.get("error", "model load failed")
+        trace = ready_msg.get("traceback")
+        if trace:
+            err = f"{err}\n{trace}"
         stats = {
             "i": batch["i"],
             "pages": batch["pages"],
             "path": batch["path"],
             "preset_used": preset,
             "status": "failed",
-            "seconds": elapsed,
+            "seconds": ready_msg.get("load_seconds", 0.0),
             "chars": 0,
             "tables": 0,
             "ram_delta_mb": None,
-            "error": f"worker exited with code {proc.exitcode}",
+            "error": err,
             "cached": False,
         }
+        return stats, "", None, err
+
+    # ---- Phase 2: wait for the actual conversion result ----
+    convert_started = time.perf_counter()
+    convert_elapsed = 0.0
+    payload = None
+    while convert_elapsed < timeout_s:
+        remaining = timeout_s - convert_elapsed
+        try:
+            payload = q.get(timeout=min(HEARTBEAT_S, remaining))
+            break
+        except queue.Empty:
+            convert_elapsed = time.perf_counter() - convert_started
+            if not proc.is_alive():
+                break
+            if log is not None:
+                log.info(
+                    "[batch %s] pp %s preset=%s still converting after %.0fs/%.0fs ...",
+                    label,
+                    batch["pages"],
+                    preset,
+                    convert_elapsed,
+                    timeout_s,
+                )
+
+    if payload is None:
+        _kill_proc(proc)
+        try:
+            q.close()
+        except Exception:  # noqa: BLE001, S110
+            pass
+        stats = _timeout_stats(batch, preset, timeout_s, "conversion")
         return stats, "", None, stats["error"]
 
-    payload = (
-        queue.get()
-        if not queue.empty()
-        else {
-            "ok": False,
-            "stats": {
-                "i": batch["i"],
-                "pages": batch["pages"],
-                "path": batch["path"],
-                "preset_used": preset,
-                "status": "failed",
-                "seconds": 0.0,
-                "chars": 0,
-                "tables": 0,
-                "ram_delta_mb": None,
-                "error": "worker exited without payload",
-                "cached": False,
-            },
-            "markdown": "",
-            "doc_dict": None,
-            "error": "worker exited without payload",
-        }
-    )
+    proc.join(5)  # let it exit naturally; it's already sent its final message
+
     err = payload.get("error") if not payload.get("ok") else None
     trace = payload.get("traceback")
     if trace:
@@ -501,9 +569,7 @@ def _looks_tabular(text: str, min_hits: int = 2) -> bool:
     """
     hits = 0
     for line in text.splitlines():
-        if len(re.findall(r" {2,}|\t", line)) >= 2 and any(
-            ch.isdigit() for ch in line
-        ):
+        if len(re.findall(r" {2,}|\t", line)) >= 2 and any(ch.isdigit() for ch in line):
             hits += 1
             if hits >= min_hits:
                 return True
@@ -534,7 +600,7 @@ def _emergency_pymupdf_fallback(
     extracted_tables = []
     total_chars = 0
 
-    for page_idx, page in enumerate(doc):
+    for page_idx, page in enumerate(doc):  # type: ignore
         page_num_str = f"Page {page_idx + 1}"
         md_lines.append(f"### {page_num_str}\n")
 
@@ -572,7 +638,7 @@ def _emergency_pymupdf_fallback(
                     span_start + page_idx,
                     exc,
                 )
-        if found_tables == 0 and text and _looks_tabular(text):
+        if found_tables == 0 and text and _looks_tabular(text):  # noqa: SIM102
             # find_tables() succeeded but saw nothing tabular on a page whose
             # text looks columnar — flag the silent fidelity loss.
             if log is not None:
@@ -825,7 +891,9 @@ def _build_result(
         "outputs": {
             "batch_dir": str(batch_dir),
             "merged_md": str(merged_md_path) if merged_md_path else None,
-            "merged_manifest": str(merged_manifest_path) if merged_manifest_path else None,
+            "merged_manifest": (
+                str(merged_manifest_path) if merged_manifest_path else None
+            ),
             "merge_result": str(batch_dir / "merge_result.json"),
             "result_json": str(result_json_path),
             "run_log": str(batch_dir / "run.log"),

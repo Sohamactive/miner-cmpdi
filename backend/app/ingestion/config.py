@@ -51,6 +51,16 @@ TIMEOUTS_S = {
     "ocr_only":    240,   # OCR alone — generous for bad rasters
 }
 
+# LOAD_TIMEOUT_S: separate budget for "spawn interpreter + import torch/docling
+# + build layout/TableFormer/(EasyOCR) models", BEFORE any per-preset
+# conversion timeout above starts counting. This used to be silently charged
+# against TIMEOUTS_S, which is why batches were timing out before Docling
+# ever got to touch a page. Generous on purpose: covers a cold cache and,
+# on first-ever run, a model download over the network.
+LOAD_TIMEOUT_S = float(__import__("os").environ.get("INGESTION_LOAD_TIMEOUT_S", "180"))
+
+
+
 def doc_timeout_for(preset: str) -> float | None:
     """Internal Docling document_timeout per preset.
 
