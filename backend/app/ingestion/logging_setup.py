@@ -16,10 +16,10 @@ def setup_clean_logs(verbose: bool = False, log_file: str | Path | None = None) 
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
     # kills your 40x tied-weights + RTDetr + HF-hub spam
-    for pat in (".*tied weights.*", ".*RTDetrImageProcessor.*",
-                ".*unauthenticated.*", ".*use_fast=False.*",
-                ".*pin_memory.*no accelerator is found.*",
-                ".*torch\.quantize_per_tensor.*deprecated.*"):
+    for pat in (r".*tied weights.*", r".*RTDetrImageProcessor.*",
+                r".*unauthenticated.*", r".*use_fast=False.*",
+                r".*pin_memory.*no accelerator is found.*",
+                r".*torch\.quantize_per_tensor.*deprecated.*"):
         warnings.filterwarnings("ignore", message=pat)
 
     for name in _QUIET:  # libs: errors only (failures still show)

@@ -11,10 +11,8 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.ingestion.pdf_runner import run_pdf
-from app.ingestion.pdf_splitter import (
-    sha256_of,
-)
+from app.ingestion.dispatcher import SUPPORTED_EXTENSIONS, run_ingest
+from app.ingestion.pdf_splitter import sha256_of
 
 router = APIRouter()
 
@@ -31,8 +29,13 @@ def _batches_dir(doc_id: str) -> Path:
     return d
 
 
-def _stored_pdf_path(doc_id: str) -> Path:
-    return _uploads_dir() / f"{doc_id}.pdf"
+def _find_stored_file(doc_id: str) -> Path | None:
+    uploads = _uploads_dir()
+    # Check exact sha with any extension
+    for p in uploads.glob(f"{doc_id}.*"):
+        if p.is_file() and not p.name.startswith("tmp_"):
+            return p
+    return None
 
 
 def _result_json_path(doc_id: str) -> Path:
@@ -41,13 +44,15 @@ def _result_json_path(doc_id: str) -> Path:
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)) -> JSONResponse:
-    """Upload a PDF and store it under data/uploads/{sha256}.pdf."""
+    """Upload a document (PDF, Spreadsheet, or Image) and store under data/uploads/{sha256}.{ext}."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
 
-    if not file.filename.lower().endswith(".pdf"):
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
-            status_code=400, detail="Only PDF uploads are supported in v1"
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Supported formats: {sorted(SUPPORTED_EXTENSIONS)}",
         )
 
     uploads = _uploads_dir()
@@ -63,7 +68,7 @@ async def upload_document(file: UploadFile = File(...)) -> JSONResponse:
     # Compute sha256 = doc_id
     doc_id = sha256_of(tmp_path)
 
-    final_path = _stored_pdf_path(doc_id)
+    final_path = uploads / f"{doc_id}{ext}"
     if not final_path.exists():
         tmp_path.replace(final_path)
     else:
@@ -74,28 +79,36 @@ async def upload_document(file: UploadFile = File(...)) -> JSONResponse:
         {
             "doc_id": doc_id,
             "filename": file.filename,
-            "stored_pdf": str(final_path),
+            "format": ext.removeprefix("."),
+            "stored_path": str(final_path),
         }
     )
 
 
 @router.post("/{doc_id}/process")
-def process_document(doc_id: str) -> JSONResponse:
-    """Run ingestion on the uploaded PDF (synchronous v1)."""
-    pdf_path = _stored_pdf_path(doc_id)
-    if not pdf_path.exists():
+def process_document(
+    doc_id: str,
+    workers: int | None = None,
+    preset: str | None = None,
+    device: str = "auto",
+    auto_detect: bool = True,
+) -> JSONResponse:
+    """Run ingestion on the uploaded document."""
+    file_path = _find_stored_file(doc_id)
+    if not file_path or not file_path.exists():
         raise HTTPException(
             status_code=404, detail=f"Unknown doc_id or missing upload: {doc_id}"
         )
 
-    # v1: sync run, returns stats + writes batch outputs under data/batches/{sha}/
     try:
-        result = run_pdf(
-            pdf_path,
-            preset="scanned",
-            device="auto",
+        result = run_ingest(
+            file_path,
+            preset=preset,
+            device=device,
             verbose=False,
             resume=True,
+            max_workers=workers,
+            auto_detect=auto_detect,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {exc}") from exc
