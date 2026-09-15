@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.I.N.E.R. — Report Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+        h1 { color: #38bdf8; margin-bottom: 8px; font-size: 1.8rem; }
+        .subtitle { color: #94a3b8; margin-bottom: 24px; }
+        label { display: block; color: #94a3b8; margin-bottom: 4px; font-size: 0.9rem; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 16px; }
+        textarea { min-height: 80px; resize: vertical; }
+        button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-secondary:hover { background: #334155; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; margin: 12px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.3s; }
+        .status { padding: 8px 12px; border-radius: 6px; margin: 8px 0; font-size: 0.9rem; }
+        .status-running { background: #1e3a5f; color: #38bdf8; }
+        .status-done { background: #14532d; color: #4ade80; }
+        .status-error { background: #7f1d1d; color: #fca5a5; }
+        .claims-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .claims-table th, .claims-table td { padding: 10px; border: 1px solid #334155; text-align: left; font-size: 0.85rem; }
+        .claims-table th { background: #1e293b; color: #94a3b8; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .badge-supported { background: #14532d; color: #4ade80; }
+        .badge-needs-review { background: #713f12; color: #fbbf24; }
+        .badge-unsupported { background: #7f1d1d; color: #fca5a5; }
+        .section-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin: 12px 0; }
+        .section-card h3 { color: #38bdf8; margin-bottom: 8px; }
+        .hidden { display: none; }
+        .flex { display: flex; gap: 12px; align-items: center; }
+        .mt-2 { margin-top: 8px; }
+        .mt-4 { margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>M.I.N.E.R.</h1>
+        <p class="subtitle">Mining Intelligence, Knowledge & Evidence Reporter — Report Generator</p>
+
+        <!-- Generate Form -->
+        <div id="generate-form">
+            <label>Report Type</label>
+            <select id="report-type">
+                <option value="parliamentary_reply">Parliamentary Reply Draft</option>
+                <option value="geological_summary">Geological Summary</option>
+            </select>
+
+            <label>Question / Topic</label>
+            <textarea id="question" placeholder="e.g., What was the coal production of MCL in FY2024-25?"></textarea>
+
+            <label>Title (optional)</label>
+            <input type="text" id="title" placeholder="Report title">
+
+            <label>Custom Sections (optional, comma-separated)</label>
+            <input type="text" id="custom-sections" placeholder="e.g., preamble, evidence_table, analysis">
+
+            <button class="btn-primary" id="btn-generate" onclick="generateReport()">Generate Report</button>
+        </div>
+
+        <!-- Progress -->
+        <div id="progress-section" class="hidden">
+            <div class="status status-running" id="status-label">Queued...</div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+            <p id="step-label" style="color:#94a3b8;font-size:0.85rem;"></p>
+        </div>
+
+        <!-- Results -->
+        <div id="results-section" class="hidden">
+            <h2 style="color:#38bdf8;margin:16px 0 8px;">Report Sections</h2>
+            <div id="sections-container"></div>
+
+            <h2 style="color:#38bdf8;margin:16px 0 8px;">Claims</h2>
+            <table class="claims-table" id="claims-table">
+                <thead><tr><th>#</th><th>Claim</th><th>Value</th><th>Unit</th><th>Status</th></tr></thead>
+                <tbody id="claims-body"></tbody>
+            </table>
+
+            <!-- HITL Feedback -->
+            <div class="mt-4">
+                <label>Feedback (your notes to revise the report)</label>
+                <textarea id="feedback-note" placeholder="e.g., Add more detail on production figures, remove 2nd paragraph..."></textarea>
+                <div class="flex mt-2">
+                    <button class="btn-secondary" onclick="submitFeedback()">Submit Feedback & Revise</button>
+                    <button class="btn-success" onclick="approveReport()">Approve & Export DOCX</button>
+                </div>
+            </div>
+
+            <div class="mt-4" id="download-section" class="hidden">
+                <button class="btn-success" id="btn-download" onclick="downloadReport()">Download DOCX</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/reports';
+        let currentJobId = null;
+        let currentReportId = null;
+        let pollInterval = null;
+
+        async function generateReport() {
+            const question = document.getElementById('question').value.trim();
+            const reportType = document.getElementById('report-type').value;
+            const title = document.getElementById('title').value.trim();
+            const customRaw = document.getElementById('custom-sections').value.trim();
+            const customSections = customRaw ? customRaw.split(',').map(s => s.trim()) : null;
+
+            if (!question) { alert('Please enter a question'); return; }
+
+            document.getElementById('generate-form').classList.add('hidden');
+            document.getElementById('progress-section').classList.remove('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API}/generate-job`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question, report_type: reportType, title, custom_sections: customSections})
+                });
+                const data = await res.json();
+                currentJobId = data.job_id;
+                pollJob();
+            } catch(e) {
+                document.getElementById('status-label').className = 'status status-error';
+                document.getElementById('status-label').textContent = 'Error: ' + e.message;
+            }
+        }
+
+        function pollJob() {
+            pollInterval = setInterval(async () => {
+                if (!currentJobId) return;
+                try {
+                    const res = await fetch(`${API}/job/${currentJobId}`);
+                    const job = await res.json();
+                    document.getElementById('progress-fill').style.width = job.progress + '%';
+                    document.getElementById('step-label').textContent = job.step_label;
+
+                    if (job.status === 'needs_review' || job.status === 'completed') {
+                        clearInterval(pollInterval);
+                        currentReportId = job.result?.report_id;
+                        document.getElementById('status-label').className = 'status status-done';
+                        document.getElementById('status-label').textContent = 'Report ready for review';
+                        renderResults(job.result);
+                    } else if (job.status === 'failed') {
+                        clearInterval(pollInterval);
+                        document.getElementById('status-label').className = 'status status-error';
+                        document.getElementById('status-label').textContent = 'Failed: ' + (job.error || 'Unknown error');
+                    } else {
+                        document.getElementById('status-label').textContent = job.status + '...';
+                    }
+                } catch(e) { /* retry */ }
+            }, 1500);
+        }
+
+        function renderResults(result) {
+            document.getElementById('progress-section').classList.add('hidden');
+            document.getElementById('results-section').classList.remove('hidden');
+
+            // Sections
+            const container = document.getElementById('sections-container');
+            container.innerHTML = '';
+            for (const s of result.sections || []) {
+                const card = document.createElement('div');
+                card.className = 'section-card';
+                card.innerHTML = `<h3>${s.heading.replace(/_/g, ' ')}</h3>` +
+                    (s.paragraphs || []).map(p => `<p style="margin:4px 0;color:#cbd5e1;">${p}</p>`).join('');
+                container.appendChild(card);
+            }
+
+            // Claims
+            const tbody = document.getElementById('claims-body');
+            tbody.innerHTML = '';
+            for (const c of result.claims || []) {
+                const badgeClass = c.validation_status === 'SUPPORTED' ? 'badge-supported' :
+                                   c.validation_status === 'NEEDS_REVIEW' ? 'badge-needs-review' : 'badge-unsupported';
+                tbody.innerHTML += `<tr>
+                    <td>${c.id}</td>
+                    <td>${c.claim_text.substring(0, 120)}</td>
+                    <td>${c.value ?? 'N/A'}</td>
+                    <td>${c.unit ?? 'N/A'}</td>
+                    <td><span class="badge ${badgeClass}">${c.validation_status}</span></td>
+                </tr>`;
+            }
+            currentReportId = result.report_id;
+        }
+
+        async function submitFeedback() {
+            if (!currentReportId) return;
+            const note = document.getElementById('feedback-note').value.trim();
+            if (!note) { alert('Please enter feedback'); return; }
+
+            try {
+                const res = await fetch(`${API}/${currentReportId}/feedback`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({note})
+                });
+                const data = await res.json();
+                if (data.error) { alert(data.error); return; }
+                renderResults(data);
+                document.getElementById('feedback-note').value = '';
+            } catch(e) { alert('Feedback failed: ' + e.message); }
+        }
+
+        async function approveReport() {
+            if (!currentReportId) return;
+            try {
+                const res = await fetch(`${API}/${currentReportId}/approve`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'APPROVE', note: 'Approved by user'})
+                });
+                const data = await res.json();
+                if (data.status === 'approved') {
+                    document.getElementById('download-section').classList.remove('hidden');
+                    alert('Report approved! Click Download DOCX to get your file.');
+                }
+            } catch(e) { alert('Approve failed: ' + e.message); }
+        }
+
+        function downloadReport() {
+            if (!currentReportId) return;
+            window.open(`${API}/${currentReportId}/download.docx`, '_blank');
+        }
+    </script>
+</body>
+</html>
