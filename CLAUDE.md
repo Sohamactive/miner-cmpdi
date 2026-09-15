@@ -31,3 +31,5 @@ uv only (`uv sync`, `uv run …` from `backend/`). Never pip-install without not
 
 ## 8. Blocked?
 Stop, state blocker + what you need, suggest owner — don't guess across it.
+
+do it good
