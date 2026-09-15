@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  /* Typography */
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Core surfaces */
+  --color-canvas: #faf8ff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f4f2fb;
+  --color-border: #e4e1f0;
+  --color-border-strong: #cac5e0;
+
+  /* Text */
+  --color-ink: #131b2e;
+  --color-ink-muted: #5b6172;
+  --color-ink-faint: #8a8fa3;
+
+  /* Government identity */
+  --color-emblem: #00142f;
+  --color-emblem-ink: #d7e4ff;
+  --color-primary: #0c2a5e;
+  --color-primary-hover: #0a2149;
+
+  /* Accent / secondary (active states, highlights) */
+  --color-secondary: #ffb559;
+  --color-secondary-ink: #2b1700;
+
+  /* Status */
+  --color-success: #1c7c54;
+  --color-success-bg: #e4f5ec;
+  --color-warning: #b45309;
+  --color-warning-bg: #fdf1de;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fbe7e6;
+  --color-info: #0f766e;
+  --color-info-bg: #e3f4f2;
+
+  /* RAG / cluster accents */
+  --color-vector: #0f766e;
+  --color-cluster: #6d28d9;
+  --color-cluster-bg: #f1e9fc;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    font-family: var(--font-sans);
+  }
+  ::selection {
+    background: var(--color-secondary);
+    color: var(--color-secondary-ink);
+  }
+}
+
+@layer utilities {
+  .font-data {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  @keyframes caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .animate-caret {
+    animation: caret-blink 0.9s steps(1) infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.35); }
+    100% { box-shadow: 0 0 0 8px rgba(15, 118, 110, 0); }
+  }
+  .animate-pulse-ring {
+    animation: pulse-ring 1.6s ease-out infinite;
+  }
+}
