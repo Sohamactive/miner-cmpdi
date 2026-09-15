@@ -1,0 +1,707 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>M.I.N.E.R. - Topic Explorer | CMPDI</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#0f2942',
+            },
+            mineNavy: '#11223f',
+            mineBlue: '#1a56db',
+          }
+        }
+      }
+    };
+  </script>
+<style data-purpose="custom-decorations">
+    /* Custom hero panoramic blend */
+    .hero-bg-gradient {
+      background: linear-gradient(90deg, #f8fafc 0%, rgba(248, 250, 252, 0.94) 45%, rgba(241, 245, 249, 0.4) 100%);
+    }
+
+    /* Soft card shadows matching reference */
+    .card-shadow {
+      box-shadow: 0 4px 20px -2px rgba(15, 33, 64, 0.05), 0 2px 6px -1px rgba(15, 33, 64, 0.03);
+    }
+    .card-shadow:hover {
+      box-shadow: 0 12px 28px -4px rgba(15, 33, 64, 0.1), 0 4px 10px -2px rgba(15, 33, 64, 0.05);
+    }
+
+    /* Gradient Card Backgrounds */
+    .card-exploration {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 35%, #bfdbfe 100%);
+    }
+    .card-coal-prod {
+      background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 35%, #fbcfe8 100%);
+    }
+    .card-seams {
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 40%, #cbd5e1 100%);
+    }
+    .card-geology {
+      background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 40%, #e9d5ff 100%);
+    }
+    .card-environment {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 40%, #bbf7d0 100%);
+    }
+    .card-safety {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 40%, #fed7aa 100%);
+    }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 font-sans min-h-screen antialiased flex flex-col">
+<!-- BEGIN: TopNavigationBar -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+<div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+<!-- Brand Logo / System Identity -->
+<div class="flex items-center space-x-3.5">
+<!-- Logo Emblem: Geometric Mineral Crystals -->
+<div class="w-10 h-10 flex-shrink-0 relative">
+<svg class="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<polygon fill="#0284c7" opacity="0.9" points="24,4 42,38 6,38"></polygon>
+<polygon fill="#0369a1" points="24,4 33,38 15,38"></polygon>
+<polygon fill="#0ea5e9" opacity="0.75" points="24,14 42,38 24,38"></polygon>
+<polygon fill="#14b8a6" opacity="0.85" points="6,38 24,38 15,22"></polygon>
+</svg>
+</div>
+<div class="leading-tight">
+<h1 class="text-xl font-black tracking-tight text-slate-900 font-sans">M.I.N.E.R.</h1>
+<p class="text-[11px] font-medium tracking-normal text-slate-500">Mining Intelligence &amp; Knowledge Explorer</p>
+</div>
+</div>
+<!-- Center Navigation Links -->
+<nav class="hidden md:flex items-center space-x-8 font-medium text-sm text-slate-600">
+<a class="hover:text-mineBlue transition-colors" href="#home">Home</a>
+<a class="hover:text-mineBlue transition-colors" href="#search">Search</a>
+<!-- Active Link 'Topics' with bottom accent pill -->
+<a class="text-mineNavy font-semibold relative py-6 text-slate-900" href="#topics">
+          Topics
+          <span class="absolute bottom-0 left-0 right-0 h-[3px] bg-mineNavy rounded-t-full"></span>
+</a>
+<a class="hover:text-mineBlue transition-colors" href="#documents">Documents</a>
+<a class="hover:text-mineBlue transition-colors" href="#insights">Insights</a>
+<a class="hover:text-mineBlue transition-colors" href="#about">About</a>
+</nav>
+<!-- Right Authority Credentials & Profile -->
+<div class="flex items-center space-x-5">
+<!-- CMPDI Crest & Subtitle -->
+<div class="flex items-center space-x-2.5 text-right hidden sm:flex">
+<!-- Ashoka Lion Emblem / State Emblem stylized -->
+<div class="w-8 h-8 text-amber-700 opacity-90 flex items-center justify-center">
+<svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2L14 6H10L12 2ZM9 7H15V9H9V7ZM6 10H18V12H6V10ZM7 13H17V17H19V19H5V17H7V13ZM12 14C11.45 14 11 14.45 11 15C11 15.55 11.45 16 12 16C12.55 16 13 15.55 13 15C13 14.45 12.55 14 12 14ZM8 20H16V22H8V20Z"></path>
+</svg>
+</div>
+<div class="text-left leading-none">
+<div class="font-bold text-slate-900 text-sm tracking-wide">CMPDI</div>
+<div class="text-[10px] text-slate-500 font-medium mt-0.5">A Miniratna Company</div>
+<div class="text-[9px] text-slate-400">A Sustainable Tomorrow</div>
+</div>
+</div>
+<div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+<!-- User Avatar Circle -->
+<button aria-label="User Profile" class="w-9 h-9 rounded-full bg-mineNavy text-white text-xs font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition" type="button">
+          GS
+        </button>
+</div>
+</div>
+</header>
+<!-- END: TopNavigationBar -->
+<!-- BEGIN: HeroBannerSection -->
+<section class="relative overflow-hidden bg-slate-50 border-b border-slate-200/80">
+<!-- Decorative background mountain & mine terrace visual -->
+<div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+<!-- Panoramic Landscape Artwork -->
+<svg class="absolute right-0 top-0 h-full w-[65%] object-cover opacity-35" fill="none" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1000 350">
+<defs>
+<linearGradient id="skyGrad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#bae6fd" stop-opacity="0.6"></stop>
+<stop offset="100%" stop-color="#f8fafc" stop-opacity="0.1"></stop>
+</linearGradient>
+<linearGradient id="ridgeGrad1" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#64748b"></stop>
+<stop offset="100%" stop-color="#334155"></stop>
+</linearGradient>
+<linearGradient id="ridgeGrad2" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#94a3b8"></stop>
+<stop offset="100%" stop-color="#475569"></stop>
+</linearGradient>
+</defs>
+<rect fill="url(#skyGrad)" height="350" width="1000"></rect>
+<!-- Distant Mountain Peaks -->
+<polygon fill="url(#ridgeGrad2)" opacity="0.35" points="200,350 450,90 700,350"></polygon>
+<polygon fill="url(#ridgeGrad1)" opacity="0.45" points="500,350 780,60 1050,350"></polygon>
+<!-- Mining Benches & Terraces -->
+<path d="M150,350 L350,220 L520,240 L680,180 L880,210 L1000,160 L1000,350 Z" fill="#64748b" opacity="0.4"></path>
+<path d="M300,350 L480,280 L650,290 L850,240 L1000,270 L1000,350 Z" fill="#475569" opacity="0.5"></path>
+<path d="M450,350 L620,310 L780,320 L1000,290 L1000,350 Z" fill="#334155" opacity="0.6"></path>
+</svg>
+<!-- Gradient overlay fade to make left side solid for typography -->
+<div class="absolute inset-0 hero-bg-gradient"></div>
+</div>
+<div class="relative z-10 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+<!-- Left Content: Hero Title & Badges -->
+<div class="max-w-2xl">
+<div class="inline-flex items-center space-x-1.5 text-xs font-bold text-mineBlue tracking-wider uppercase mb-3">
+<span class="text-sm leading-none">✪</span>
+<span class="">Knowledge Exploration</span>
+</div>
+<h2 class="text-4xl sm:text-5xl font-extrabold text-mineNavy tracking-tight leading-tight">
+          Topic <span class="text-mineBlue">Explorer</span>
+</h2>
+<p class="mt-3 text-slate-600 text-base sm:text-lg max-w-xl font-normal leading-relaxed">
+          Discover key themes and explore relevant documents from across the CMPDI knowledge base.
+        </p>
+</div>
+<!-- Right Content: Tagline Pillar -->
+<div class="hidden lg:block text-right self-center pr-6">
+<p class="text-xl sm:text-2xl font-bold text-slate-700 leading-snug tracking-tight max-w-[280px]">
+          Knowledge<br>for a Sustainable<br>Mining Future
+        </p>
+</div>
+</div>
+</section>
+<!-- END: HeroBannerSection -->
+<!-- BEGIN: SearchAndFiltersSection -->
+<section class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 -mt-6 z-20 relative">
+<div class="bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-slate-200/90 flex flex-col lg:flex-row items-center justify-between gap-3.5">
+<!-- Search Input Box -->
+<div class="relative w-full lg:w-96 flex-shrink-0">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+</div>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-mineBlue/20 focus:border-mineBlue transition" id="topic-search" placeholder="Search topics (e.g. exploration, environment, safety...)" type="text">
+</div>
+<!-- Filters & Sort Group -->
+<div class="flex flex-wrap items-center justify-between lg:justify-end w-full gap-2.5 sm:gap-3">
+<!-- Sort Dropdown Pill -->
+<div class="relative">
+<button class="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white border border-slate-300/80 text-slate-700 rounded-xl text-xs sm:text-sm font-medium hover:border-slate-400 hover:bg-slate-50 shadow-sm transition-all" type="button"><span class="">Sort by: <strong class="font-semibold text-slate-900">Mentions</strong></span><svg class="w-3.5 h-3.5 text-slate-500 ml-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg></button>
+</div>
+<!-- Topic Categories Navigation Pills -->
+<div class="flex items-center overflow-x-auto space-x-1.5 py-1"><button class="px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-[#0f2942] to-[#1e40af] text-white shadow-md shadow-blue-900/25 ring-2 ring-blue-900/20 hover:opacity-95 transition-all duration-200">All Topics</button><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Geology</button><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Operations</button><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Environment</button><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Safety</button><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Others</button></div>
+</div>
+</div>
+<!-- Topics Count Indicator -->
+<div class="flex justify-end pt-3 pb-2 text-xs font-medium text-slate-500">
+<span class="">24 topics found</span>
+</div>
+</section>
+<!-- END: SearchAndFiltersSection -->
+<!-- BEGIN: MainTopicGrid -->
+<main class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 flex-1">
+<!-- Primary Featured Topic Cards (2 Rows x 3 Cols) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+<!-- Card 1: Exploration -->
+<article class="relative group overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/90 via-sky-50 to-blue-100/60 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Mountainous Vector Silhouette on bottom right -->
+<svg class="absolute right-0 bottom-0 w-44 h-36 opacity-30 text-blue-400 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="currentColor" viewBox="0 0 200 140">
+<path d="M0,140 L70,50 L110,95 L145,40 L200,140 Z"></path>
+<path d="M90,140 L130,85 L160,115 L200,65 L200,140 Z" opacity="0.6"></path>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<!-- Top Row: Icon and Title -->
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Pickaxe / Exploration Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M14 2l6 6m-3-3l-7 7m-3 3l-4 4"></path>
+<path d="M3 21l3-3m5-5l2-2"></path>
+<path d="M14.5 4.5L19.5 9.5"></path>
+<path d="M6 14l-4 4 4 4 4-4-4-4z" opacity="0.3"></path>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Exploration</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-blue-900 text-base">184</span> mentions
+                </p>
+<!-- Mention progress bar -->
+<div class="w-28 h-2 bg-blue-200/80 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-blue-700 rounded-full" style="width: 85%;"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Subtitle & Action Icon -->
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              Discovering resources for a better tomorrow
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-blue-600/40 border border-blue-400/30 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+<!-- Card 2: Coal Production -->
+<article class="relative group overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-orange-50/70 to-amber-100/50 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Haul Truck & Mine Terrace Graphic -->
+<svg class="absolute right-2 bottom-0 w-48 h-36 opacity-35 text-amber-600 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="currentColor" viewBox="0 0 200 140">
+<!-- Mine Quarry Terraces -->
+<path d="M0,135 L80,110 L160,85 L200,70 L200,140 L0,140 Z" opacity="0.4"></path>
+<!-- Dump Haul Truck silhouette -->
+<rect height="25" rx="3" width="55" x="110" y="80"></rect>
+<polygon points="165,80 185,90 185,105 165,105"></polygon>
+<circle cx="125" cy="108" r="10"></circle>
+<circle cx="170" cy="108" r="10"></circle>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-amber-700 flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Mining Truck Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M3 13h13v5H3z"></path>
+<path d="M16 13l3-4h3v9h-6"></path>
+<circle cx="6.5" cy="18.5" r="2.5"></circle>
+<circle cx="17.5" cy="18.5" r="2.5"></circle>
+<path d="M8 8h6l2 5H8z"></path>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Coal Production</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-amber-950 text-base">152</span> mentions
+                </p>
+<div class="w-28 h-2 bg-amber-200/80 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-amber-700 rounded-full" style="width: 72%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              Efficient production for national growth
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 text-white flex items-center justify-center shadow-md shadow-amber-600/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-amber-600/40 border border-amber-300/40 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+<!-- Card 3: Coal Seams -->
+<article class="relative group overflow-hidden rounded-2xl border border-slate-300/80 bg-gradient-to-br from-slate-100 via-slate-200/70 to-zinc-300/60 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Strata Rock Texture Graphic -->
+<svg class="absolute right-0 bottom-0 w-44 h-36 opacity-30 text-slate-700 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="currentColor" viewBox="0 0 200 140">
+<path d="M0,140 C50,110 120,130 200,90 L200,140 Z"></path>
+<path d="M0,110 C60,80 140,110 200,70 L200,100 C140,130 50,100 0,130 Z" opacity="0.6"></path>
+<path d="M0,80 C70,60 130,85 200,45 L200,70 C130,105 70,80 0,100 Z" opacity="0.8"></path>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Layers / Coal Seams Strata Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+<polyline points="2 17 12 22 22 17"></polyline>
+<polyline points="2 12 12 17 22 12"></polyline>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Coal Seams</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-slate-900 text-base">131</span> mentions
+                </p>
+<div class="w-28 h-2 bg-slate-300 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-slate-800 rounded-full" style="width: 65%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              Understanding the Earth's layers
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-900/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-slate-900/40 border border-slate-600/30 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+<!-- Card 4: Geological Survey -->
+<article class="relative group overflow-hidden rounded-2xl border border-purple-200/80 bg-gradient-to-br from-purple-50 via-fuchsia-50/40 to-indigo-100/50 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Geological Topo Lines Graphic -->
+<svg class="absolute right-0 bottom-0 w-44 h-36 opacity-25 text-purple-600 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 200 140">
+<ellipse cx="130" cy="80" rx="60" ry="30"></ellipse>
+<ellipse cx="130" cy="80" rx="45" ry="20"></ellipse>
+<ellipse cx="130" cy="80" rx="28" ry="12"></ellipse>
+<ellipse cx="130" cy="80" rx="12" ry="5"></ellipse>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-purple-700 flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Geological Map & Pin Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+<line x1="8" x2="8" y1="2" y2="18"></line>
+<line x1="16" x2="16" y1="6" y2="22"></line>
+<circle cx="12" cy="10" fill="currentColor" r="1.8"></circle>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Geological Survey</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-purple-950 text-base">118</span> mentions
+                </p>
+<div class="w-28 h-2 bg-purple-200/80 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-purple-700 rounded-full" style="width: 58%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              Mapping the subsurface for informed decisions
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-purple-600/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-700/40 border border-purple-300/40 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+<!-- Card 5: Environment -->
+<article class="relative group overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-green-100/50 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Forest & Valley Landscape Silhouette -->
+<svg class="absolute right-0 bottom-0 w-44 h-36 opacity-30 text-emerald-600 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="currentColor" viewBox="0 0 200 140">
+<path d="M0,140 Q40,110 80,120 T160,105 Q180,95 200,110 L200,140 Z"></path>
+<!-- Evergreen trees -->
+<polygon points="120,115 130,90 140,115"></polygon>
+<polygon points="140,110 150,85 160,110"></polygon>
+<polygon points="160,115 170,95 180,115"></polygon>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Leaf / Ecology Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Environment</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-emerald-950 text-base">97</span> mentions
+                </p>
+<div class="w-28 h-2 bg-emerald-200/80 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-emerald-600 rounded-full" style="width: 48%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              Balancing mining with a greener planet
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-emerald-700/40 border border-emerald-300/40 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+<!-- Card 6: Safety -->
+<article class="relative group overflow-hidden rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/60 p-6 card-shadow transition-all duration-300 hover:-translate-y-1 cursor-pointer" data-purpose="topic-card">
+<!-- Miners with Helmets Silhouette Graphic -->
+<svg class="absolute right-0 bottom-0 w-44 h-36 opacity-30 text-amber-700 pointer-events-none transition-transform duration-500 group-hover:scale-105" fill="currentColor" viewBox="0 0 200 140">
+<!-- Miner silhouettes -->
+<circle cx="120" cy="85" r="9"></circle>
+<path d="M108,125 C108,105 132,105 132,125 Z"></path>
+<circle cx="150" cy="80" r="10"></circle>
+<path d="M136,130 C136,102 164,102 164,130 Z"></path>
+<circle cx="180" cy="88" r="8"></circle>
+<path d="M170,130 C170,110 190,110 190,130 Z"></path>
+</svg>
+<div class="relative z-10 flex flex-col justify-between h-48">
+<div>
+<div class="flex items-start space-x-3.5">
+<div class="w-12 h-12 rounded-xl bg-[#d97706] flex items-center justify-center text-white shadow-md flex-shrink-0">
+<!-- Hardhat Safety Icon -->
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M2 18h20"></path>
+<path d="M5 18v-4a7 7 0 0 1 14 0v4"></path>
+<path d="M12 4v7"></path>
+</svg>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold text-slate-900 leading-tight">Safety</h3>
+<p class="text-sm text-slate-600 font-medium mt-0.5">
+<span class="font-bold text-amber-950 text-base">84</span> mentions
+                </p>
+<div class="w-28 h-2 bg-amber-200/80 rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-amber-600 rounded-full" style="width: 42%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between pt-4">
+<p class="text-xs text-slate-600 font-medium max-w-[180px] leading-relaxed">
+              People first, Always
+            </p>
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 text-white flex items-center justify-center shadow-md shadow-orange-500/30 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-orange-600/40 border border-amber-200/40 transition-all duration-300 ring-2 ring-white/80"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</div>
+</div>
+</article>
+</div>
+<!-- BEGIN: SecondaryTopicsSection (Compact Cards in Multi-column Grid) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Compact 1: Reserves -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-blue-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+<!-- Cube / Block Reserves Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+<polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+<line x1="12" x2="12" y1="22.08" y2="12"></line>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Reserves</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">64</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-blue-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-blue-600 rounded-full" style="width: 50%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-blue-50/80 border border-blue-200/70 text-blue-600 flex items-center justify-center shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 2: Borehole -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-blue-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-600 group-hover:text-white transition">
+<!-- Derrick / Drill Rig Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 4 22 20 22 12 2"></polygon>
+<line x1="12" x2="12" y1="6" y2="22"></line>
+<line x1="6.5" x2="17.5" y1="16" y2="16"></line>
+<line x1="8.5" x2="15.5" y1="11" y2="11"></line>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Borehole</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">52</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-sky-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-sky-600 rounded-full" style="width: 44%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-sky-50/80 border border-sky-200/70 text-sky-600 flex items-center justify-center shadow-sm group-hover:bg-sky-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 3: Overburden -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-blue-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition">
+<!-- Rock Mound / Dump Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M4 19h16l-3-9-5 3-4-6-4 12z"></path>
+<circle cx="8" cy="16" fill="currentColor" r="1"></circle>
+<circle cx="12" cy="15" fill="currentColor" r="1"></circle>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Overburden</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">48</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-slate-200 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-slate-700 rounded-full" style="width: 38%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-300/70 text-slate-700 flex items-center justify-center shadow-sm group-hover:bg-slate-800 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 4: Rehabilitation -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-emerald-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition">
+<!-- Sprout Plant Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M7 20h10"></path>
+<path d="M12 20v-8"></path>
+<path d="M12 12a5 5 0 0 1 5-5h1v1a5 5 0 0 1-5 5h-1z"></path>
+<path d="M12 15a5 5 0 0 0-5-5H6v1a5 5 0 0 0 5 5h1z"></path>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Rehabilitation</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">41</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-emerald-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-emerald-600 rounded-full" style="width: 32%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-emerald-50/80 border border-emerald-200/70 text-emerald-600 flex items-center justify-center shadow-sm group-hover:bg-emerald-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 5: Barakar Formation -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-indigo-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition">
+<!-- Geological Strata Stack Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+<path d="M2 17l10 5 10-5"></path>
+<path d="M2 12l10 5 10-5"></path>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Barakar Formation</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">36</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-indigo-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-indigo-600 rounded-full" style="width: 28%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-indigo-50/80 border border-indigo-200/70 text-indigo-600 flex items-center justify-center shadow-sm group-hover:bg-indigo-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 6: Stripping Ratio -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-amber-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-600 group-hover:text-white transition">
+<!-- Excavator / Shovel Machine Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M4 17h16M4 21h16M5 13h4l2 4H7z"></path>
+<path d="M15 13l4-7 3 2-3 5z"></path>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Stripping Ratio</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">29</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-orange-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-orange-600 rounded-full" style="width: 24%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-orange-50/80 border border-orange-200/70 text-orange-600 flex items-center justify-center shadow-sm group-hover:bg-orange-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 7: Mine Planning -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-blue-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-600 group-hover:text-white transition">
+<!-- Clipboard Blueprint Document Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+<polyline points="14 2 14 8 20 8"></polyline>
+<line x1="16" x2="8" y1="13" y2="13"></line>
+<line x1="16" x2="8" y1="17" y2="17"></line>
+<line x1="10" x2="8" y1="9" y2="9"></line>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Mine Planning</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">27</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-sky-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-sky-600 rounded-full" style="width: 22%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-sky-50/80 border border-sky-200/70 text-sky-600 flex items-center justify-center shadow-sm group-hover:bg-sky-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 8: Sustainable Mining -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-emerald-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-600 group-hover:text-white transition">
+<!-- Sustainable Circular Recycling Ecology Icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"></path>
+<path d="M11 19h8.2a1.8 1.8 0 0 0 1.55-.87 1.8 1.8 0 0 0 0-1.8L16.8 9.5"></path>
+<path d="M12 2v4"></path>
+<path d="m14 4-2-2-2 2"></path>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Sustainable Mining</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">25</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-teal-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-teal-600 rounded-full" style="width: 20%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-teal-50/80 border border-teal-200/70 text-teal-600 flex items-center justify-center shadow-sm group-hover:bg-teal-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+<!-- Compact 9: Water Management -->
+<article class="bg-white rounded-2xl p-4 border border-slate-200/90 card-shadow flex items-center justify-between hover:border-blue-300 transition-all cursor-pointer group" data-purpose="secondary-topic-card">
+<div class="flex items-center space-x-3">
+<div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+<!-- Water Droplet Icon -->
+<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+</svg>
+</div>
+<div>
+<h4 class="font-bold text-slate-800 text-sm">Water Management</h4>
+<p class="text-xs text-slate-500 font-medium">
+<span class="font-bold text-slate-800">22</span> mentions
+            </p>
+<div class="w-20 h-1.5 bg-blue-100 rounded-full mt-1.5 overflow-hidden">
+<div class="h-full bg-blue-600 rounded-full" style="width: 18%;"></div>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-blue-50/80 border border-blue-200/70 text-blue-600 flex items-center justify-center shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:scale-105 group-hover:shadow transition-all duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+</article>
+</div>
+<!-- END: SecondaryTopicsSection -->
+</main>
+<!-- END: MainTopicGrid -->
+<!-- BEGIN: PageFooter -->
+<footer class="bg-white border-t border-slate-200 py-6 mt-auto text-center text-xs text-slate-500">
+<div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+<p class="">© 2026 CMPDI (Central Mine Planning &amp; Design Institute Limited). Coal India Limited.</p>
+<p class="text-slate-400">M.I.N.E.R. v2.4 • Ministry of Coal, Government of India</p>
+</div>
+</footer>
+<!-- END: PageFooter -->
+<!-- Interactive Search / Filter script -->
+<script data-purpose="search-interaction">
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('topic-search');
+      const cards = document.querySelectorAll('[data-purpose="topic-card"], [data-purpose="secondary-topic-card"]');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase().trim();
+          cards.forEach(card => {
+            const cardText = card.innerText.toLowerCase();
+            if (cardText.includes(query)) {
+              card.style.display = '';
+            } else {
+              card.style.display = 'none';
+            }
+          });
+        });
+      }
+    });
+  </script>
+
+
+</body></html>
