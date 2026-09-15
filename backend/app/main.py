@@ -42,6 +42,9 @@ def create_app() -> FastAPI:
     from .api.documents import router as documents_router
     app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
 
+    from .api.qa import router as qa_router
+    app.include_router(qa_router, prefix="/api/qa", tags=["qa"])
+
     return app
 
 
