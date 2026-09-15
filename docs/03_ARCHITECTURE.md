@@ -1,7 +1,6 @@
 # 03 — Architecture
 
-> Status: DRAFT — nothing locked. Covers: shape, backend modules, stores, report flow, tooling (uv). Frontend detail, contracts, ingestion internals later.
-> Built so far: `backend/` skeleton + `docling` dep only. No module code yet.
+> Status: DRAFT. The retrieval foundation described in §3 and `05_RAG_PIPELINE.md` is implemented; other architecture remains open.
 
 ## 1. Shape: client-server modular monolith
 - React frontend (UI) + FastAPI backend (one process, one deploy).
@@ -14,7 +13,7 @@
 |---|---|
 | `api/` | Thin HTTP routing only, no logic |
 | `ingestion/` | Upload, type-detect, Docling batches + progress, page markers → raw pages |
-| `extraction/` | Chunks + typed facts `{entity, metric, period, value, unit, page, evidence}` in SQLite |
+| `extraction/` | Chunks + typed facts `{entity, metric, period, value, unit, page_range, evidence}` in PostgreSQL |
 | `knowledge/` | Embeddings + BM25, hybrid retrieve; Qdrant payload mirror |
 | `qa/` | Understand → fact-lookup-first → RAG fill → cited answer + refusal |
 | `analytics/` | TF-IDF/NMF topics, wordcloud, timeseries (M2) |
@@ -24,11 +23,11 @@
 
 No `rag/` folder: memory half in `knowledge/`, mouth half in `qa/`.
 
-## 3. Data stores (decided)
-- SQLite `backend/data/coal.db` via `common/db.py`: documents, pages, chunks (authoritative text), facts, claims, reports, reviews, jobs. Never committed.
+## 3. Data stores
+- PostgreSQL via SQLAlchemy/psycopg: documents, pages, chunks, facts, and raw Docling JSONB. PostgreSQL is authoritative for structured facts and provenance.
 - Storage paths: SQLite + upload scratch → `backend/data/`. Qdrant disk files → repo-root `qdrant_storage/` (compose mount `./qdrant_storage:/qdrant/storage`) or Docker volume — never inside `backend/data/`.
 - Qdrant is a brand-new database for this project: new collection (e.g. `miner_chunks`), fresh empty storage. SOW's `knowledge_base` collection untouched. Same server process may host it; split to a second instance only on port conflicts.
-- Chunk text + `{chunk_id, document_id, page, year, mine, section}` stored as Qdrant payload mirror for fast hits; SQLite stays source of truth for citations, validation, eval, export. Rebuild index from SQLite on loss.
+- Chunk text + `{chunk_id, document_id, page_range, batch, section}` stored as Qdrant payload mirror for fast hits; PostgreSQL stays source of truth for citations, validation, eval, and export. Rebuild the index from PostgreSQL/artifacts on loss.
 - BM25 rebuilt in memory at startup.
 
 ## 4. Report flow (proposal)
@@ -40,7 +39,6 @@ Select → gather (facts-first, then RAG) → draft per slot → extract claims 
 - Installed: `docling` only. Next: FastAPI/uvicorn + ingestion deps when ingestion module starts.
 
 ## 6. Open (not decided)
-- Embeddings provider (local vs Gemini API).
 - Frontend pages/components.
 - Ingestion internals beyond the current prototype.
 

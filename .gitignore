@@ -31,3 +31,4 @@ generated_proposals/
 # OS
 .DS_Store
 Thumbs.db
+.freebuff/

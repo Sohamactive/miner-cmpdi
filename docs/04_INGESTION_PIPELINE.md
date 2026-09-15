@@ -150,4 +150,4 @@ Next (pick one):
 1. Add `failed_ranges` top-level field to `result.json` for explicit downstream quarantine.
 2. Async `/process` (job id + poll) so HTTP doesn't block for hours.
 3. Isolated 1-page debug script for pp 61-66 outside the main pipeline.
-4. Wire `result.json` batches into SQLite `documents/pages/chunks` (extraction module).
+4. Wire `result.json` batches into PostgreSQL `documents/pages/chunks` via the RAG indexer (`docs/05_RAG_PIPELINE.md`).
