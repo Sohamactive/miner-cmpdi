@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
 import DashboardPage from './pages/DashboardPage'
-import AIQueryPage from './pages/AIQueryPage'
-import TopicExplorerPage from './pages/TopicExplorerPage'
+import { AIQueryPage } from './pages/AIQueryPage'
+import { TopicExplorerPage } from './pages/TopicExplorerPage'
 import ReviewApprovalPage from './pages/ReviewApprovalPage'
 import ReportSynthesisPage from './pages/ReportSynthesisPage'
 
