@@ -28,12 +28,28 @@ uv run uvicorn app.main:app --reload
 # open http://localhost:8000/docs
 ```
 
-Set `DATABASE_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, and `EMBEDDING_MODEL` using `.env.example` before indexing. PostgreSQL is the structured source of truth; Qdrant is the rebuildable semantic index. Qdrant can run locally with `docker run --rm -p 6333:6333 qdrant/qdrant`. Docling and embedding model weights download on first use.
+Create `backend/.env` from `.env.example` before indexing. Required: `DATABASE_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `EMBEDDING_MODEL`. Backend loads `backend/.env` at startup.
+
+PostgreSQL is structured source of truth; Qdrant is rebuildable semantic index.
+
+Recommended local Qdrant (dedicated instance for MINER, avoids conflicts with other projects):
+
+```powershell
+docker run -d --name miner-qdrant -p 6334:6333 -v "${PWD}\qdrant_storage_miner:/qdrant/storage" qdrant/qdrant:v1.19.0
+# then set QDRANT_URL=http://localhost:6334
+```
+
+Indexing is not automatic after ingestion. Use endpoints:
+
+- `POST /api/documents/{doc_id}/index` (sync)
+- `POST /api/documents/{doc_id}/index-job` + `GET /api/documents/index-job/{job_id}` (async)
+- `POST /api/documents/index-all-job` (index everything with `merged.md` + `result.json`)
 
 ## What to do next
 
 1. Read `docs/00_PROJECT_CONTEXT.md` → `01` → `02` → `03` → `04` (in order). PS wins conflicts.
 2. Read `docs/05_RAG_PIPELINE.md` for indexing and retrieval commands.
+3. Read `docs/10_OPERATIONS_RUNBOOK.md` for day-to-day ingest/index/QA operations.
 3. Check the Notion SIH tracker for doc progress before creating new docs.
 4. Tooling: `uv` only (`uv sync`, `uv run …`). Never commit `backend/data/coal.db`, model caches, or `qdrant_storage/`.
 

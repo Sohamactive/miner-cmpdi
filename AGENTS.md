@@ -4,7 +4,7 @@
 `docs/00_PROJECT_CONTEXT.md` → `01_PROBLEM_STATEMENT.md` → `02_REQUIREMENTS.md` → `03_ARCHITECTURE.md` → `04_INGESTION_PIPELINE.md`. PS wins conflicts. Check `docs/_archive/` for background only — never treat it as binding. See `README.md` for repo state + setup.
 
 ## 2. Current proposals (all open)
-- FastAPI monolith + React + SQLite source of truth + new Qdrant collection (`miner_chunks`)
+- FastAPI monolith + React + PostgreSQL structured evidence store (implemented for RAG) + Qdrant collection (`miner_chunks`) as rebuildable semantic mirror
 - Facts-first QA; mechanical (code, not LLM) validation; 1-then-2 report templates
 - Ingestion internals: see implemented prototype in `docs/04_INGESTION_PIPELINE.md` (PDF-only v1, skip-after-fallbacks; 1-page retry is optional future)
 - None frozen — confirm before building on them.
@@ -24,10 +24,20 @@ Backend modules per 03 §2 (`api/ingestion/extraction/knowledge/qa/analytics/rep
 5. Architecture changes → propose ADR entry for `09_DECISIONS_LOG.md`; never silently treat proposals as final.
 
 ## 6. Tooling
-uv only (`uv sync`, `uv run …` from `backend/`). Never pip-install without noting it. `backend/data/coal.db`, model caches, `qdrant_storage/` never committed (see `.gitignore`).
+uv only (`uv sync`, `uv run …` from `backend/`). Never pip-install without noting it. Runtime artifacts under `backend/data/`, model caches, and Qdrant storage folders (e.g. `qdrant_storage/`, `qdrant_storage_miner/`) are never committed (see `.gitignore`).
 
 ## 7. Storage
-`backend/data/` holds SQLite + scratch only. Qdrant is a new collection (`miner_chunks`) with disk files at root `qdrant_storage/` or a volume — never inside `backend/data/`. SQLite is source of truth; Qdrant payload is a rebuildable mirror.
+`backend/data/` holds runtime ingestion artifacts and scratch only (uploads, batch artifacts, logs).
+
+PostgreSQL is source of truth for structured evidence (documents/chunks/facts/raw Docling JSONB).
+
+Qdrant is rebuildable semantic mirror (collection `miner_chunks`). Run a dedicated Qdrant instance for MINER (separate port/storage) to avoid conflicts with other projects; see `docs/10_OPERATIONS_RUNBOOK.md`.
+
+Indexing is a separate step after ingestion. Use endpoints:
+
+- `POST /api/documents/{doc_id}/index` (sync)
+- `POST /api/documents/{doc_id}/index-job` + `GET /api/documents/index-job/{job_id}` (async)
+- `POST /api/documents/index-all-job` (bulk async for ready batch dirs)
 
 ## 8. Blocked?
 Stop, state blocker + what you need, suggest owner — don't guess across it.

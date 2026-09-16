@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 from app.common.validator import validate_claim, ClaimResult, ClaimStatus
-from app.qa.models import QAClaim, QAResponse
+from backend.app.review.qa.models import QAClaim, QAResponse
 from app.extraction.postgres import create_session, search_facts, normalize_table_facts
 from sqlalchemy import select
 from sqlalchemy.orm import Session

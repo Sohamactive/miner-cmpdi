@@ -124,6 +124,17 @@ Base: `/api/documents`. Test at `/docs`.
 | `GET` | `/{doc_id}/result` | Returns saved `result.json`. 404 if never processed |
 | `GET` | `/{doc_id}/merged.md` | Downloads `merged.md`. 404 if missing |
 
+Indexing (separate step; ingestion does not auto-index):
+
+| Method | Route | What |
+|---|---|---|
+| `POST` | `/{doc_id}/index` | Sync index to PostgreSQL + Qdrant (requires `merged.md` + `result.json`) |
+| `POST` | `/{doc_id}/index-job` | Async index (returns `job_id`) |
+| `GET` | `/index-job/{job_id}` | Poll index job status |
+| `POST` | `/index-all-job` | Async: index all batch dirs that are ready (`merged.md` + `result.json`) |
+| `GET` | `/uploads` | List `data/uploads` (doc_id inventory) |
+| `GET` | `/batches` | List `data/batches` + readiness flags |
+
 Note: `/process` holds the HTTP request open (66pp ≈ 1–3h on CPU). Async jobs are future work.
 
 ## 9. Known failures (2026-09-13, 66pp doc)

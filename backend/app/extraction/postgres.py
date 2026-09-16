@@ -73,7 +73,9 @@ def _detect_entity_from_first_column(rows: list[list[str]]) -> str | None:
     """The first cell of the first data row often names the entity (e.g. ECL, BCCL)."""
     if not rows or not isinstance(rows[0], list):
         return None
-    first_cell = str(rows[1][0]).strip() if len(rows) > 1 and isinstance(rows[1], list) else None
+    first_cell = (
+        str(rows[1][0]).strip() if len(rows) > 1 and isinstance(rows[1], list) else None
+    )
     if not first_cell:
         return None
     # Filter out common non-entity labels
@@ -87,8 +89,20 @@ def _detect_entity_from_first_column(rows: list[list[str]]) -> str | None:
 def _detect_unit_from_headers(headers: list[str]) -> str | None:
     """Look for unit keywords in header texts: persons, tonnes, crores, Rs., %."""
     unit_keywords = {
-        "persons", "persons trained", "number", "count", "lakhs", "crores",
-        "tonnes", "kg", "g/t", "%", "rs.", "rupees", "million", "billion",
+        "persons",
+        "persons trained",
+        "number",
+        "count",
+        "lakhs",
+        "crores",
+        "tonnes",
+        "kg",
+        "g/t",
+        "%",
+        "rs.",
+        "rupees",
+        "million",
+        "billion",
     }
     for h in headers:
         hp = str(h).lower()
@@ -110,9 +124,11 @@ def _detect_unit_from_headers(headers: list[str]) -> str | None:
     return None
 
 
-def normalize_table_facts(payload: dict, document_id: str, page_range: str | None) -> tuple[list[Fact], list[Fact]]:
+def normalize_table_facts(
+    payload: dict, document_id: str, page_range: str | None
+) -> tuple[list[Fact], list[Fact]]:
     """Normalize table-to-fact extraction.
-    
+
     Returns:
         (completed_facts, partial_facts) — only fully-qualified facts get entity/metric/period/value/unit.
         Partial rows (missing any of the 5 fields) are returned separately for manual review.
@@ -146,7 +162,11 @@ def normalize_table_facts(payload: dict, document_id: str, page_range: str | Non
                     break
             if numeric is None:
                 continue
-            metric = cells[0] if cells and numeric_index != 0 else (headers[0] if headers else None)
+            metric = (
+                cells[0]
+                if cells and numeric_index != 0
+                else (headers[0] if headers else None)
+            )
             # Build Fact with whatever we detected
             fact = Fact(
                 document_id=document_id,
@@ -159,7 +179,11 @@ def normalize_table_facts(payload: dict, document_id: str, page_range: str | Non
                 period=period,
             )
             # Count how many of the 5 required fields are populated
-            filled = sum(1 for f in [fact.entity, fact.metric, fact.period, fact.unit] if f is not None)
+            filled = sum(
+                1
+                for f in [fact.entity, fact.metric, fact.period, fact.unit]
+                if f is not None
+            )
             if filled >= 3:  # generous threshold: emit as completed, rest pending
                 completed.append(fact)
             else:
@@ -169,48 +193,80 @@ def normalize_table_facts(payload: dict, document_id: str, page_range: str | Non
     return completed, partial
 
 
-def persist_artifacts(session: Session, *, document_id: str, filename: str,
-                      chunks: list[Chunk],
-                      raw_payloads: list[tuple[dict, str | None, str | None]] | None = None,
-                      source_path: str | None = None) -> None:
+def persist_artifacts(
+    session: Session,
+    *,
+    document_id: str,
+    filename: str,
+    chunks: list[Chunk],
+    raw_payloads: list[tuple[dict, str | None, str | None]] | None = None,
+    source_path: str | None = None,
+) -> None:
     create_schema(session)
     if session.get(Document, document_id) is None:
-        session.add(Document(document_id=document_id, filename=filename, source_path=source_path))
+        session.add(
+            Document(
+                document_id=document_id, filename=filename, source_path=source_path
+            )
+        )
     for chunk in chunks:
         if session.get(ChunkRecord, chunk.chunk_id) is None:
             session.add(ChunkRecord(**chunk.__dict__))
     for payload, batch, page_range in raw_payloads or []:
-        raw_id = hashlib.sha256(json.dumps(
-            [document_id, batch, page_range, payload], sort_keys=True
-        ).encode()).hexdigest()[:64]
-        session.merge(RawDoclingDocument(raw_id=raw_id, document_id=document_id,
-                                         batch=batch, page_range=page_range, payload=payload))
+        raw_id = hashlib.sha256(
+            json.dumps(
+                [document_id, batch, page_range, payload], sort_keys=True
+            ).encode()
+        ).hexdigest()[:64]
+        session.merge(
+            RawDoclingDocument(
+                raw_id=raw_id,
+                document_id=document_id,
+                batch=batch,
+                page_range=page_range,
+                payload=payload,
+            )
+        )
         completed, partial = normalize_table_facts(payload, document_id, page_range)
         for fact in completed:
-            duplicate = session.scalar(select(Fact).where(
-                Fact.document_id == fact.document_id,
-                Fact.metric == fact.metric,
-                Fact.value == fact.value,
-                Fact.evidence == fact.evidence,
-            ).limit(1))
+            duplicate = session.scalar(
+                select(Fact)
+                .where(
+                    Fact.document_id == fact.document_id,
+                    Fact.metric == fact.metric,
+                    Fact.value == fact.value,
+                    Fact.evidence == fact.evidence,
+                )
+                .limit(1)
+            )
             if duplicate is None:
                 session.add(fact)
         for fact in partial:
             # Store partial facts separately for manual review
             fact.partial_fill = True  # type: ignore[attr-defined]
-            duplicate = session.scalar(select(Fact).where(
-                Fact.document_id == fact.document_id,
-                Fact.metric == fact.metric,
-                Fact.value == fact.value,
-                Fact.evidence == fact.evidence,
-            ).limit(1))
+            duplicate = session.scalar(
+                select(Fact)
+                .where(
+                    Fact.document_id == fact.document_id,
+                    Fact.metric == fact.metric,
+                    Fact.value == fact.value,
+                    Fact.evidence == fact.evidence,
+                )
+                .limit(1)
+            )
             if duplicate is None:
                 session.add(fact)
     session.commit()
 
 
-def search_facts(session: Session, *, entity: str | None = None, metric: str | None = None,
-                 period: str | None = None, limit: int = 20) -> list[Fact]:
+def search_facts(
+    session: Session,
+    *,
+    entity: str | None = None,
+    metric: str | None = None,
+    period: str | None = None,
+    limit: int = 20,
+) -> list[Fact]:
     query = select(Fact).limit(limit)
     if entity:
         query = query.where(Fact.entity.ilike(f"%{entity}%"))

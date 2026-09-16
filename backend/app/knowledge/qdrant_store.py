@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Sequence
 
 from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 from .chunking import Chunk
+
+
+logger = logging.getLogger(__name__)
 
 
 class QdrantStore:
@@ -47,5 +52,19 @@ class QdrantStore:
             query_filter = models.Filter(must=[models.FieldCondition(
                 key="document_id", match=models.MatchValue(value=document_id)
             )])
-        return self.client.query_points(collection_name=self.collection, query=list(vector),
-                                        query_filter=query_filter, limit=limit, with_payload=True).points
+
+        try:
+            return self.client.query_points(
+                collection_name=self.collection,
+                query=list(vector),
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            ).points
+        except UnexpectedResponse as exc:
+            # Qdrant is rebuildable mirror; if it is unhealthy/corrupt, keep app usable.
+            logger.error("Qdrant query failed (%s): %s", getattr(exc, "status_code", "?"), str(exc))
+            return []
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Qdrant query error: %s", str(exc))
+            return []

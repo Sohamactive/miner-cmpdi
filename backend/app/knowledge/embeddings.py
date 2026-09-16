@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import os
+import threading
 from collections.abc import Iterable
+
+
+_FASTEMBED_MODEL_LOCK = threading.Lock()
+_FASTEMBED_MODEL_CACHE: dict[str, object] = {}
 
 
 class EmbeddingProvider:
@@ -20,13 +25,21 @@ class FastEmbedProvider(EmbeddingProvider):
     def __init__(self, model_name: str | None = None) -> None:
         self.model_name = model_name or os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
         self.dimension = 384
+        # Model init is expensive. Keep per-process shared cache keyed by model_name.
         self._model = None
 
     def embed(self, texts: Iterable[str]) -> list[list[float]]:
-        if self._model is None:
-            from fastembed import TextEmbedding
-            self._model = TextEmbedding(model_name=self.model_name)
-        return [list(vector) for vector in self._model.embed(list(texts))]
+        model = self._model
+        if model is None:
+            with _FASTEMBED_MODEL_LOCK:
+                cached = _FASTEMBED_MODEL_CACHE.get(self.model_name)
+                if cached is None:
+                    from fastembed import TextEmbedding
+                    cached = TextEmbedding(model_name=self.model_name)
+                    _FASTEMBED_MODEL_CACHE[self.model_name] = cached
+                self._model = cached
+                model = cached
+        return [list(vector) for vector in model.embed(list(texts))]
 
 
 class HashEmbeddingProvider(EmbeddingProvider):

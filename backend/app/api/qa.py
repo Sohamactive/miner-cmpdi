@@ -14,8 +14,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.qa.responder import Responder
-from app.qa.models import QAResponse
+from app.review.qa.responder import Responder
+from app.review.qa.models import QAResponse
 
 
 router = APIRouter()

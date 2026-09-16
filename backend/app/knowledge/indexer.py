@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ def index_ingestion_artifacts(
     embedder: EmbeddingProvider,
     qdrant: QdrantStore,
     database_url: str | None = None,
+    embed_batch_size: int | None = None,
 ) -> dict[str, int | str]:
     """Index only successful batch artifacts produced by existing ingestion."""
     batch_path = Path(batch_dir)
@@ -58,5 +60,16 @@ def index_ingestion_artifacts(
     finally:
         session.close()
 
-    qdrant.upsert_chunks(chunks, embedder.embed([chunk.text for chunk in chunks]))
+    # Qdrant is rebuildable mirror. Upsert in small embed batches to avoid OOM.
+    if embed_batch_size is None:
+        embed_batch_size = int(os.getenv("EMBED_BATCH_SIZE", "16"))
+    if embed_batch_size <= 0:
+        embed_batch_size = 16
+
+    if chunks:
+        qdrant.ensure_collection(embedder.dimension)
+        for start in range(0, len(chunks), embed_batch_size):
+            batch = chunks[start : start + embed_batch_size]
+            vectors = embedder.embed([c.text for c in batch])
+            qdrant.upsert_chunks(batch, vectors)
     return {"document_id": document_id, "chunks": len(chunks), "batches": indexed_batches}
