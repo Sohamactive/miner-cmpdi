@@ -42,7 +42,7 @@ class Responder:
     @property
     def retriever(self):
         if self._retriever is None:
-            self._retriever = SemanticRetriever(QdrantStore(), FastEmbedProvider())
+            self._retriever = SemanticRetriever(QdrantStore(path="/Users/krish/miner-cmpdi/qdrant_storage"), FastEmbedProvider())
         return self._retriever
 
     @property

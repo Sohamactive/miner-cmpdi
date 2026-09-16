@@ -12,8 +12,13 @@ from .chunking import Chunk
 
 class QdrantStore:
     def __init__(self, client: QdrantClient | None = None, *, url: str | None = None,
-                 collection: str | None = None) -> None:
-        self.client = client or QdrantClient(url=url or os.getenv("QDRANT_URL", "http://localhost:6333"))
+                 path: str | None = None, collection: str | None = None) -> None:
+        if client is not None:
+            self.client = client
+        elif path is not None:
+            self.client = QdrantClient(path=path)
+        else:
+            self.client = QdrantClient(url=url or os.getenv("QDRANT_URL", "http://localhost:6333"))
         self.collection = collection or os.getenv("QDRANT_COLLECTION", "miner_chunks")
 
     def ensure_collection(self, dimension: int) -> None:
