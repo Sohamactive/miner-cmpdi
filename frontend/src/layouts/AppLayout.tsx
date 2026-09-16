@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom'
 import NationalEmblemBar from '@/components/layout/NationalEmblemBar'
 import PortalHeader from '@/components/layout/PortalHeader'
 import NavStrip from '@/components/layout/NavStrip'
-import Sidebar from '@/components/layout/Sidebar'
 import Footer from '@/components/layout/Footer'
 
 export default function AppLayout() {
@@ -15,18 +14,13 @@ export default function AppLayout() {
         <NavStrip />
       </header>
 
-      {/* Sidebar */}
-      <Sidebar />
-
       {/* Main Content Area */}
-      <div className="pl-64">
-        <main className="w-full pt-[136px] bg-background min-h-screen">
-          <div className="flex flex-col w-full">
-            <Outlet />
-          </div>
-          <Footer />
-        </main>
-      </div>
+      <main className="w-full pt-[136px] bg-background min-h-screen">
+        <div className="flex flex-col w-full">
+          <Outlet />
+        </div>
+        <Footer />
+      </main>
     </>
   )
 }

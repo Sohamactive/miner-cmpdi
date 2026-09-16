@@ -16,17 +16,13 @@ export default function ReviewApprovalPage() {
           <span className="text-on-surface font-semibold">Dossier SYN-2025-TLR-089A</span>
         </div>
         <div className="flex items-center gap-[var(--spacing-space-md)] font-mono text-[12px] leading-[16px]">
-          <span className="px-[var(--spacing-space-xs)] py-0.5 rounded-[var(--radius-sm)] bg-surface-container-high text-on-surface-variant flex items-center gap-1">
-            <span className="material-symbols-outlined text-[13px] text-secondary">verified_user</span>
-            DSC Level 3 Required
-          </span>
           <span className="text-on-surface-variant">Review Session: #REV-9921-GOI</span>
           <div className="w-2 h-2 rounded-full bg-tertiary-container animate-pulse" />
         </div>
       </section>
 
       {/* ── Main Split Layout ── */}
-      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-md)] grid grid-cols-1 xl:grid-cols-12 gap-[var(--spacing-gutter)] items-start">
+      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-md)] grid grid-cols-1 xl:grid-cols-12 gap-[var(--spacing-gutter)] items-start animate-fade-in-up">
 
         {/* ── LEFT: Draft Report (7 cols) ── */}
         <div className="xl:col-span-7 flex flex-col gap-[var(--spacing-space-md)]">
@@ -276,25 +272,15 @@ export default function ReviewApprovalPage() {
           <div className="bg-surface-container-lowest p-[var(--spacing-space-md)] rounded-[var(--radius-md)] shadow-sm flex flex-col gap-[var(--spacing-space-sm)]">
             <h3 className="text-[16px] leading-[24px] font-semibold text-primary flex items-center gap-1">
               <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
-              Executive Certification &amp; Export
-              <span className="font-mono text-[12px] leading-[16px] text-on-surface-variant font-normal ml-auto">DSC AUTH</span>
+              Export &amp; Download
             </h3>
-            <div className="flex flex-col gap-[var(--spacing-space-xs)]">
-              <button className="text-[13px] leading-[18px] tracking-[0.01em] font-semibold text-on-surface-variant flex items-center gap-[var(--spacing-space-xs)] px-[var(--spacing-space-sm)] py-[var(--spacing-space-xs)] bg-surface-container-low rounded-[var(--radius-sm)] hover:bg-surface-container-high transition-colors">
-                <span className="material-symbols-outlined text-[16px] text-secondary">key</span>
-                Apply Digital Cryptographic Token
-              </button>
-              <div className="font-mono text-[11px] text-outline px-[var(--spacing-space-sm)]">
-                NIC / e-Mudhra USB Token Cert: 4891-A480-0012
-              </div>
-            </div>
             <button className="w-full px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] bg-primary text-on-primary rounded-[var(--radius-sm)] text-[13px] leading-[18px] tracking-[0.01em] font-semibold flex items-center justify-center gap-[var(--spacing-space-xs)] hover:bg-primary-container transition-colors">
               <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-              Generate &amp; Download Official PDF (with Gov Emblem &amp; Watermark)
+              Generate &amp; Download Official PDF
             </button>
             <button className="w-full px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] bg-surface-container-low text-primary rounded-[var(--radius-sm)] text-[13px] leading-[18px] tracking-[0.01em] font-semibold flex items-center justify-center gap-[var(--spacing-space-xs)] hover:bg-surface-container-high transition-colors">
               <span className="material-symbols-outlined text-[16px]">description</span>
-              Export Editable Synthesis DOCX (Strict Formatting)
+              Export Editable DOCX
             </button>
             <button className="w-full px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] bg-surface-container-low text-primary rounded-[var(--radius-sm)] text-[13px] leading-[18px] tracking-[0.01em] font-semibold flex items-center justify-center gap-[var(--spacing-space-xs)] hover:bg-surface-container-high transition-colors">
               <span className="material-symbols-outlined text-[16px]">send</span>

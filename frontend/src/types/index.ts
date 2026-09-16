@@ -31,15 +31,7 @@ export interface AssetBreakdownItem {
   color: string;
 }
 
-export interface GalleryCard {
-  image: string;
-  tag: string;
-  badge: string;
-  title: string;
-  description: string;
-  source: string;
-  action: string;
-}
+
 
 export interface AuditRecord {
   title: string;
@@ -124,7 +116,6 @@ export interface NavItem {
   path: string;
   label: string;
   icon: string;
-  sidebarLabel?: string;
 }
 // ---------------------------------------------------------------------------
 // AI Query & Evidence Viewer

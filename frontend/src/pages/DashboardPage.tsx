@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { kpiData, pipelineSteps, assetBreakdown, galleryCards, auditRecords } from '@/data/mockData'
+import { Link } from 'react-router-dom'
+import { kpiData, pipelineSteps, assetBreakdown, auditRecords } from '@/data/mockData'
 
 export default function DashboardPage() {
-  const [showModal, setShowModal] = useState(false)
-
   return (
     <>
       {/* ── Context Banner ── */}
@@ -20,39 +19,35 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">
-              Automated multi-modal parsing, spatial OCR mapping, and RAG vector pipeline status for Coal India subsidiaries.
+              Multi-modal document ingestion, AI-powered query, and automated report synthesis for Coal India subsidiaries.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[var(--spacing-space-sm)]">
-          {[
-            { icon: 'database', label: 'Inspect Vector Indices', variant: 'ghost', iconColor: 'text-secondary' },
-            { icon: 'history_edu', label: 'Export Audit Trail', variant: 'ghost', iconColor: 'text-outline' },
-            { icon: 'quick_reference_all', label: 'Launch RAG Query Engine', variant: 'secondary', iconColor: '' },
-            { icon: 'upload_file', label: 'Ingest Archival Batch', variant: 'primary', iconColor: '' },
-          ].map((btn) => (
-            <button
-              key={btn.label}
-              className={`px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] font-semibold text-[13px] leading-[18px] tracking-[0.01em] rounded-[var(--radius-sm)] shadow-sm flex items-center gap-[var(--spacing-space-xs)] transition-colors ${
-                btn.variant === 'primary' ? 'bg-primary text-on-primary hover:bg-primary-container' :
-                btn.variant === 'secondary' ? 'bg-secondary text-on-secondary hover:opacity-95' :
-                'bg-surface-container-lowest text-primary hover:bg-surface-container-high'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-[18px] ${btn.iconColor}`}>{btn.icon}</span>
-              <span>{btn.label}</span>
-            </button>
-          ))}
+          <Link
+            to="/ai-query"
+            className="px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] font-semibold text-[13px] leading-[18px] tracking-[0.01em] rounded-[var(--radius-sm)] shadow-sm flex items-center gap-[var(--spacing-space-xs)] transition-colors bg-secondary text-on-secondary hover:opacity-95"
+          >
+            <span className="material-symbols-outlined text-[18px]">quick_reference_all</span>
+            <span>Launch AI Query</span>
+          </Link>
+          <Link
+            to="/reports"
+            className="px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] font-semibold text-[13px] leading-[18px] tracking-[0.01em] rounded-[var(--radius-sm)] shadow-sm flex items-center gap-[var(--spacing-space-xs)] transition-colors bg-primary text-on-primary hover:bg-primary-container"
+          >
+            <span className="material-symbols-outlined text-[18px]">upload_file</span>
+            <span>Ingest Documents</span>
+          </Link>
         </div>
       </section>
 
       {/* ── Main Content ── */}
-      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-lg)] flex flex-col gap-[var(--spacing-space-lg)]">
+      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-lg)] flex flex-col gap-[var(--spacing-space-lg)] animate-fade-in-up">
 
         {/* ── KPI Grid ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[var(--spacing-space-md)]">
           {kpiData.map((kpi) => (
-            <div key={kpi.label} className="bg-surface-container-lowest p-[var(--spacing-space-md)] rounded-[var(--radius-sm)] shadow-sm flex flex-col justify-between relative overflow-hidden">
+            <div key={kpi.label} className="card-hover bg-surface-container-lowest p-[var(--spacing-space-md)] rounded-[var(--radius-sm)] shadow-sm flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-surface-container-low rounded-full -mr-8 -mt-8 pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between">
@@ -85,20 +80,16 @@ export default function DashboardPage() {
               <div className="flex items-center gap-[var(--spacing-space-sm)]">
                 <span className="material-symbols-outlined text-primary text-[22px]">account_tree</span>
                 <div>
-                  <h2 className="text-[16px] leading-[24px] font-semibold text-primary">Live Document Intelligence &amp; Ingestion Lifecycle</h2>
-                  <p className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">Synchronous staging from raw scan digitisation to vector payload synchronization</p>
+                  <h2 className="text-[16px] leading-[24px] font-semibold text-primary">Document Ingestion Pipeline</h2>
+                  <p className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">Processing stages from raw document upload to indexed knowledge base</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-[var(--spacing-space-xs)] font-mono text-[12px] leading-[16px] text-tertiary-container bg-surface-container-low px-[var(--spacing-space-sm)] py-1 rounded-[var(--radius-sm)]">
-                <span className="w-2 h-2 rounded-full bg-on-tertiary-container animate-pulse" />
-                <span>Batch Worker Pool: 32 Threads</span>
               </div>
             </div>
 
-            {/* 6 Pipeline Nodes */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-[var(--spacing-space-sm)] my-[var(--spacing-space-md)]">
+            {/* Pipeline Nodes */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-[var(--spacing-space-sm)] my-[var(--spacing-space-md)]">
               {pipelineSteps.map((step) => (
-                <div key={step.step} className="bg-surface-container-low p-[var(--spacing-space-sm)] rounded-[var(--radius-sm)] flex flex-col justify-between h-36">
+                <div key={step.step} className="card-hover bg-surface-container-low p-[var(--spacing-space-sm)] rounded-[var(--radius-sm)] flex flex-col justify-between h-36">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-[12px] leading-[16px] text-on-surface-variant">{step.step}</span>
@@ -118,25 +109,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Active Ingestion Job */}
-            <div className="bg-surface-container-low p-[var(--spacing-space-md)] rounded-[var(--radius-sm)] flex flex-col md:flex-row items-center justify-between gap-[var(--spacing-space-md)]">
-              <div className="flex items-center gap-[var(--spacing-space-md)]">
-                <div className="w-12 h-12 rounded-[var(--radius-sm)] bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm">
-                  <span className="material-symbols-outlined text-[24px]">memory</span>
-                </div>
-                <div>
-                  <div className="text-[13px] leading-[18px] tracking-[0.01em] font-semibold text-primary">Active Ingestion Job: BATCH-RI2-1984-JH-09</div>
-                  <div className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">Processing: Jharia Block VII Core Logs (Pages 120-280) • 28 docs queued</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-[var(--spacing-space-sm)]">
-                <span className="font-mono text-[12px] leading-[16px] text-on-surface-variant">Throughput: 42 pages/min</span>
-                <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-lowest hover:bg-surface-container-high text-primary text-[12px] leading-[16px] tracking-[0.02em] font-medium rounded-[var(--radius-sm)] shadow-sm">
-                  Pause Worker
-                </button>
-              </div>
             </div>
           </div>
 
@@ -183,49 +155,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Visual Intelligence Gallery ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-[var(--spacing-space-md)]">
-          {galleryCards.map((card) => (
-            <div key={card.title} className="bg-surface-container-lowest rounded-[var(--radius-sm)] shadow-sm overflow-hidden flex flex-col">
-              <div className="relative h-44 w-full overflow-hidden bg-surface-container">
-                {card.image ? (
-                  <img className="w-full h-full object-cover" src={card.image} alt={card.title} />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary-container to-primary" />
-                )}
-                <span className="absolute top-2 left-2 bg-primary text-on-primary text-[11px] leading-[16px] tracking-[0.08em] font-bold px-2 py-0.5 rounded-[var(--radius-sm)]">
-                  {card.tag}
-                </span>
-                <span className="absolute bottom-2 right-2 bg-surface-container-lowest text-on-surface font-mono text-[12px] leading-[16px] px-2 py-0.5 rounded-[var(--radius-sm)] shadow-sm">
-                  {card.badge}
-                </span>
-              </div>
-              <div className="p-[var(--spacing-space-md)] flex flex-col justify-between flex-1">
-                <div>
-                  <h3 className="text-[16px] leading-[24px] font-semibold text-primary">{card.title}</h3>
-                  <p className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant mt-1">{card.description}</p>
-                </div>
-                <div className="mt-[var(--spacing-space-md)] pt-[var(--spacing-space-xs)] flex items-center justify-between text-[12px] leading-[16px] tracking-[0.02em] font-medium">
-                  <span className="text-on-surface-variant">{card.source}</span>
-                  <a className="text-secondary font-semibold hover:underline cursor-pointer">{card.action}</a>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* ── Audit Registry Table ── */}
         <div className="bg-surface-container-lowest rounded-[var(--radius-sm)] shadow-sm p-[var(--spacing-space-lg)] flex flex-col">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-[var(--spacing-space-sm)] pb-[var(--spacing-space-md)]">
             <div>
               <div className="flex items-center gap-[var(--spacing-space-sm)]">
-                <h2 className="text-[20px] leading-[28px] font-semibold text-primary">Recent Ingestion Log &amp; Non-Repudiation Audit Registry</h2>
+                <h2 className="text-[20px] leading-[28px] font-semibold text-primary">Recent Ingestion Log</h2>
                 <span className="px-[var(--spacing-space-xs)] py-0.5 rounded-[var(--radius-sm)] bg-surface-container-high text-on-surface text-[11px] leading-[16px] tracking-[0.08em] font-bold uppercase">
                   Live Sync
                 </span>
               </div>
               <p className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">
-                Cryptographically signed logs verified against Coal India central records archive policy
+                Document ingestion history and processing status
               </p>
             </div>
             <div className="flex items-center gap-[var(--spacing-space-sm)] flex-wrap">
@@ -240,7 +181,7 @@ export default function DashboardPage() {
               </div>
               <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-low hover:bg-surface-container-high text-primary text-[12px] leading-[16px] tracking-[0.02em] font-medium rounded-[var(--radius-sm)] flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px]">refresh</span>
-                <span>Refresh Registry</span>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
@@ -254,9 +195,8 @@ export default function DashboardPage() {
                   <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">Department / Institute</th>
                   <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">Format</th>
                   <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">Classification Tag</th>
-                  <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">OCR / Vector Confidence</th>
+                  <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">OCR Confidence</th>
                   <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold">Ingestion Date</th>
-                  <th className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-semibold text-right">Provenance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container">
@@ -292,15 +232,6 @@ export default function DashboardPage() {
                     <td className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] font-mono text-[12px] leading-[16px] text-on-surface-variant">
                       {record.ingestionDate}
                     </td>
-                    <td className="py-[var(--spacing-space-sm)] px-[var(--spacing-space-md)] text-right">
-                      <button
-                        onClick={() => setShowModal(true)}
-                        className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-lowest hover:bg-surface-container-high text-primary text-[12px] leading-[16px] tracking-[0.02em] font-medium rounded-[var(--radius-sm)] shadow-sm inline-flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[14px] text-secondary">verified_user</span>
-                        <span>View Provenance</span>
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -318,57 +249,11 @@ export default function DashboardPage() {
               <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-low text-on-surface rounded-[var(--radius-sm)] text-[12px] leading-[16px] tracking-[0.02em] font-medium hover:bg-surface-container-high">2</button>
               <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-low text-on-surface rounded-[var(--radius-sm)] text-[12px] leading-[16px] tracking-[0.02em] font-medium hover:bg-surface-container-high">3</button>
               <span className="px-1 text-outline">...</span>
-              <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-low text-on-surface rounded-[var(--radius-sm)] text-[12px] leading-[16px] tracking-[0.02em] font-medium hover:bg-surface-container-high">9,658</button>
               <button className="px-[var(--spacing-space-sm)] py-1 bg-surface-container-low text-on-surface rounded-[var(--radius-sm)] text-[12px] leading-[16px] tracking-[0.02em] font-medium hover:bg-surface-container-high">Next</button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* ── Provenance Modal ── */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-container/50" onClick={() => setShowModal(false)}>
-          <div className="bg-surface-container-lowest rounded-[var(--radius-sm)] max-w-xl w-full mx-[var(--spacing-space-md)] p-[var(--spacing-space-lg)] shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between pb-[var(--spacing-space-md)]">
-              <div className="flex items-center gap-[var(--spacing-space-sm)]">
-                <span className="material-symbols-outlined text-secondary text-[24px]">verified</span>
-                <h3 className="text-[16px] leading-[24px] font-semibold text-primary">Cryptographic Provenance Certificate</h3>
-              </div>
-              <button className="text-outline hover:text-primary" onClick={() => setShowModal(false)}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="space-y-[var(--spacing-space-sm)] text-[14px] leading-[22px]">
-              <div className="p-[var(--spacing-space-sm)] bg-surface-container-low rounded-[var(--radius-sm)]">
-                <span className="text-[11px] leading-[16px] tracking-[0.08em] font-bold uppercase text-on-surface-variant block">SHA-256 Digest</span>
-                <span className="font-mono text-[12px] leading-[16px] text-primary break-all">8f3c4e92a104bfa9824de84c90e1837d991bce09f6e1878d38440938ff56a29e</span>
-              </div>
-              <div className="grid grid-cols-2 gap-[var(--spacing-space-sm)]">
-                <div className="p-[var(--spacing-space-sm)] bg-surface-container-low rounded-[var(--radius-sm)]">
-                  <span className="text-[11px] leading-[16px] tracking-[0.08em] font-bold uppercase text-on-surface-variant block">Ingested By</span>
-                  <span className="text-[13px] leading-[18px] tracking-[0.01em] font-semibold text-primary">CMPDI Dhanbad RI-II</span>
-                </div>
-                <div className="p-[var(--spacing-space-sm)] bg-surface-container-low rounded-[var(--radius-sm)]">
-                  <span className="text-[11px] leading-[16px] tracking-[0.08em] font-bold uppercase text-on-surface-variant block">Qdrant Collection</span>
-                  <span className="font-mono text-[12px] leading-[16px] text-primary">cmpdi_seam_strata_v2</span>
-                </div>
-              </div>
-              <div className="p-[var(--spacing-space-sm)] bg-surface-container-low rounded-[var(--radius-sm)]">
-                <span className="text-[11px] leading-[16px] tracking-[0.08em] font-bold uppercase text-on-surface-variant block">Chunk Distribution</span>
-                <span className="text-on-surface">32 Semantic chunks generated • Cosine distance 0.982 • Surya OCR validated</span>
-              </div>
-            </div>
-            <div className="mt-[var(--spacing-space-md)] pt-[var(--spacing-space-sm)] flex justify-end">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] bg-primary text-on-primary text-[13px] leading-[18px] tracking-[0.01em] font-semibold rounded-[var(--radius-sm)]"
-              >
-                Dismiss Certificate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

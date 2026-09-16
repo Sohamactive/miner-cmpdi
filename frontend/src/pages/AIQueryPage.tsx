@@ -26,7 +26,7 @@ export function AIQueryPage() {
   const hasEvidence = !!state.evidence;
 
   return (
-    <div className="grid grid-cols-12 gap-6 p-6">
+    <div className="grid grid-cols-12 gap-6 p-6 animate-fade-in-up">
       {/* ---------------------------------------------------------------- */}
       {/* LEFT PANEL — query, filters, streaming synthesis                  */}
       {/* ---------------------------------------------------------------- */}

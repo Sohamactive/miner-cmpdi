@@ -35,13 +35,18 @@ export function TopicExplorerPage() {
   };
 
   if (!bundle) {
-    return <div className="p-6 text-sm text-ink-muted">Loading topic clusters…</div>;
+    return (
+      <div className="flex items-center justify-center p-12 text-sm text-ink-muted gap-2">
+        <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+        Loading topic clusters…
+      </div>
+    );
   }
 
   const activeTopic = bundle.topics.find((t) => t.id === activeTopicId) ?? null;
 
   return (
-    <div className="grid grid-cols-12 gap-6 p-6">
+    <div className="grid grid-cols-12 gap-6 p-6 animate-fade-in-up">
       <section className="col-span-12 flex flex-col gap-5 lg:col-span-8">
         {/* Command bar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -62,7 +67,7 @@ export function TopicExplorerPage() {
         <FilterPills pills={bundle.domains} activeId={domain} onSelect={setDomain} />
 
         {/* Topic cards grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" style={{ animationDelay: '80ms' }}>
           {visibleTopics.map((topic) => (
             <TopicCard
               key={topic.id}
@@ -86,7 +91,7 @@ export function TopicExplorerPage() {
         </div>
 
         {/* Semantic topic space */}
-        <div className="rounded-2xl border border-border bg-surface p-4">
+        <div className="rounded-2xl border border-border bg-surface-container-low p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-data text-[11px] uppercase tracking-wide text-ink-faint">
               Semantic Topic Space — UMAP 2D
@@ -112,7 +117,7 @@ export function TopicExplorerPage() {
 
         <div className="flex flex-col gap-3">
           {activeArchives.map((doc) => (
-            <div key={doc.id} className="rounded-xl border border-border bg-surface p-4">
+            <div key={doc.id} className="card-hover rounded-xl border border-border bg-surface-container-lowest p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-ink">{doc.title}</h3>
                 <span className="shrink-0 font-data text-[11px] text-vector">d={doc.distance.toFixed(2)}</span>
