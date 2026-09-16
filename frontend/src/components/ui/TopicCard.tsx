@@ -14,7 +14,7 @@ export function TopicCard({
     <button
       onClick={onClick}
       className={cn(
-        "group flex flex-col gap-3 rounded-2xl border p-5 text-left transition-all",
+        "group card-hover flex flex-col gap-3 rounded-2xl border p-5 text-left transition-all",
         active
           ? "border-cluster bg-cluster-bg/60 shadow-sm"
           : "border-border bg-surface hover:border-border-strong hover:shadow-sm",

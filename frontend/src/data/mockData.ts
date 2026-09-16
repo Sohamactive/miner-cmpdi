@@ -1,5 +1,5 @@
 import type {
-  KPIData, PipelineStepData, AssetBreakdownItem, GalleryCard,
+  KPIData, PipelineStepData, AssetBreakdownItem,
   AuditRecord, ReportSection, SeamReserveRow, ReviewChecklist,
   ApprovalAuditEntry, UserProfile, ReportTemplate, NavItem,
   ArchiveDoc, BoreholeLog, ClusterPoint, ContextVector,
@@ -9,11 +9,11 @@ import type {
 
 // ── Navigation ──
 export const navItems: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard & Ingestion', icon: 'dashboard', sidebarLabel: 'Dashboard Overview' },
-  { path: '/ai-query', label: 'AI Query & Evidence Viewer', icon: 'psychology', sidebarLabel: 'AI Neural Query' },
-  { path: '/topics', label: 'Topic Explorer & Clusters', icon: 'hub', sidebarLabel: 'Topic Clusters' },
-  { path: '/review-approval', label: 'Human Review & Approval', icon: 'fact_check', sidebarLabel: 'Audit & Review' },
-  { path: '/reports', label: 'Report Synthesis & Export', icon: 'summarize', sidebarLabel: 'Synthesis Engine' },
+  { path: '/dashboard', label: 'Dashboard & Ingestion', icon: 'dashboard' },
+  { path: '/ai-query', label: 'AI Query & Evidence', icon: 'psychology' },
+  { path: '/topics', label: 'Topic Explorer', icon: 'hub' },
+  { path: '/review-approval', label: 'Review & Approval', icon: 'fact_check' },
+  { path: '/reports', label: 'Report Synthesis', icon: 'summarize' },
 ];
 
 // ── Dashboard KPIs ──
@@ -42,12 +42,10 @@ export const kpiData: KPIData[] = [
 
 // ── Pipeline Steps ──
 export const pipelineSteps: PipelineStepData[] = [
-  { step: '01', title: 'Doc Parser', subtitle: 'PyMuPDF, Unstructured', progress: 100, status: 'complete', icon: 'check_circle' },
-  { step: '02', title: 'OCR Engine', subtitle: 'Tesseract / Surya OCR', progress: 96, status: 'complete', icon: 'check_circle' },
-  { step: '03', title: 'Normalization', subtitle: 'Stratum Table Cleanse', progress: 88, status: 'complete', icon: 'check_circle' },
-  { step: '04', title: 'Classification', subtitle: 'CMPDI Coal Taxonomy', progress: 72, status: 'active', icon: 'sync' },
-  { step: '05', title: 'Semantic Chunk', subtitle: '512 token boundary', progress: 45, status: 'pending', icon: 'hourglass_top' },
-  { step: '06', title: 'Qdrant Sync', subtitle: 'HNSW Indexed Vectors', progress: 30, status: 'pending', icon: 'pending' },
+  { step: '01', title: 'Upload & Parse', subtitle: 'PDF / XLSX / Image intake', progress: 100, status: 'complete', icon: 'check_circle' },
+  { step: '02', title: 'OCR & Extract', subtitle: 'Docling + PyMuPDF fallback', progress: 96, status: 'complete', icon: 'check_circle' },
+  { step: '03', title: 'Chunk & Index', subtitle: 'Semantic chunking + facts', progress: 65, status: 'active', icon: 'sync' },
+  { step: '04', title: 'Vector Sync', subtitle: 'Qdrant embeddings mirror', progress: 30, status: 'pending', icon: 'hourglass_top' },
 ];
 
 // ── Asset Breakdown ──
@@ -58,30 +56,7 @@ export const assetBreakdown: AssetBreakdownItem[] = [
   { label: 'Feasibility & Legal Directives (DOCX)', value: 4830, percentage: 10, color: 'bg-outline' },
 ];
 
-// ── Gallery Cards ──
-export const galleryCards: GalleryCard[] = [
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBHxnnwzRpa_NWtrS0hINPfuIY1LLdifdPp21e3B3ZTnqfG0AMjTWLkfULrnl5Hr38VrzUpPqiI9Di0nkeKb-OYjI3AA_Ak50irUHZ9ucLKLVxj037Yep5xePyU7s-aQen4gJAiUOERNyVUS0wbGaPBHe1XBhuNZ0Snlyh7t8uNqK5EDcAXNkTIDJluDFUqEnQ-qge-rNAUk170NJtOZuVcKn8DUAaIJDPMZrIpGxI8YJmczN_yRk6o',
-    tag: 'Scanned Map 1984', badge: '400 DPI Tiff',
-    title: 'Jharia Basin Structural Seam X-B',
-    description: 'Multi-spectral geo-rectified layer showing historical extraction fault lines and overburden ratio.',
-    source: 'CMPDI RI-II Dhanbad', action: 'View Vector Layers',
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuABnzEn6HtQnx624nAV1YSA_5KeGRLxfsdYDriuwBMvGhNZwBj3KHXiteZh-wY8uvlqIDhTSLvsio9fcIu2acvjIykMB82ozgnN74GnSCBE3MGDVZ10SyOKbP8R4E0GBRri1ZJCmd6DEzGKYzrVoYlzjb-wso99GQTGv_6VbsK-Sh3iUtcUMYENzLfdPADfbk_QjzjmjmssrLAKNLGPs1_JtzTugrEC7bQ0UObdn_1mv26RG4mkHEn1',
-    tag: 'Core Sample Lab', badge: 'Borehole #BH-409',
-    title: 'Petrographic Reflectance Matrix',
-    description: 'Vitrinite analysis confirming coking propensity of sub-surface coal seams in Raniganj Coalfield.',
-    source: 'CMPDI RI-I Asansol', action: 'View Lab Certificate',
-  },
-  {
-    image: '',
-    tag: 'Field Telemetry', badge: 'Lat 23.3441° N',
-    title: 'Gondwana Basin Exploration Grid',
-    description: 'Active acoustic sounding stations feeding automated ingestion vectors directly into Qdrant index clusters.',
-    source: 'HQ Exploration Division', action: 'Explore Station Data',
-  },
-];
+
 
 // ── Audit Registry ──
 export const auditRecords: AuditRecord[] = [

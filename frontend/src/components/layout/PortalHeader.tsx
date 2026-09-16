@@ -1,7 +1,7 @@
 export default function PortalHeader() {
   return (
     <div className="bg-surface-container-lowest">
-      <div className="w-full px-[var(--spacing-gutter)] h-16 flex items-center justify-between gap-[var(--spacing-space-md)]">
+      <div className="w-full px-[var(--spacing-gutter)] h-16 flex items-center gap-[var(--spacing-space-md)]">
         <div className="flex items-center gap-[var(--spacing-space-md)]">
           <img
             alt="CMPDI M.I.N.E.R. Official Emblem"
@@ -18,21 +18,6 @@ export default function PortalHeader() {
             <span className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">
               Central Mine Planning &amp; Design Institute • Knowledge Base &amp; AI Retrieval System
             </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-[var(--spacing-space-lg)]">
-          <div className="hidden xl:flex items-center bg-surface-container-low px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] rounded-[var(--radius-sm)] w-80 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[18px] mr-[var(--spacing-space-sm)] text-outline">search</span>
-            <span className="text-[13px] leading-[18px] text-outline">Search boreholes, seismic logs, reports...</span>
-          </div>
-          <div className="flex items-center gap-[var(--spacing-space-sm)]">
-            <div className="text-right hidden md:block">
-              <div className="text-[13px] leading-[18px] tracking-[0.01em] font-semibold text-primary">Er. R. K. Sharma</div>
-              <div className="text-[13px] leading-[18px] tracking-[0.01em] text-on-surface-variant">Chief Manager (Geology &amp; Planning), HQ Ranchi</div>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
-            </div>
           </div>
         </div>
       </div>

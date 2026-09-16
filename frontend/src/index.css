@@ -58,6 +58,32 @@
   --color-outline: #74777f;
   --color-outline-variant: #c4c6cf;
 
+  /* ── Semantic Aliases (used by UI components) ── */
+  --color-ink: #131b2e;
+  --color-ink-muted: #44474e;
+  --color-ink-faint: #74777f;
+  --color-secondary-ink: #2b1700;
+
+  --color-border: #c4c6cf;
+  --color-border-strong: #74777f;
+
+  --color-surface-raised: #e2e7ff;
+
+  --color-cluster: #485f83;
+  --color-cluster-bg: #d5e3ff;
+  --color-vector: #30476a;
+
+  --color-success: #005323;
+  --color-success-bg: #95f8a7;
+  --color-warning: #663e00;
+  --color-warning-bg: #ffddb9;
+  --color-danger: #93000a;
+  --color-danger-bg: #ffdad6;
+  --color-info: #30476a;
+  --color-info-bg: #d5e3ff;
+
+  --color-primary-hover: #0f294a;
+
   --color-inverse-surface: #283044;
   --color-inverse-on-surface: #eef0ff;
   --color-inverse-primary: #b0c8f1;
@@ -183,3 +209,42 @@
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
 }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  70% { box-shadow: 0 0 0 4px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+/* ── Global Micro-Interactions ── */
+@layer base {
+  button, a, [role="button"] {
+    transition: all 0.15s ease;
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* ── Card Hover Lift ── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 20, 47, 0.08);
+}
+
+/* ── Typography Utility ── */
+.font-data { font-family: var(--font-mono); }

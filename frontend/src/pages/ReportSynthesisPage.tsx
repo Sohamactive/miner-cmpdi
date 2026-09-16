@@ -37,7 +37,7 @@ export default function ReportSynthesisPage() {
       </section>
 
       {/* ── Main Layout ── */}
-      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-md)] grid grid-cols-1 xl:grid-cols-12 gap-[var(--spacing-gutter)] items-start">
+      <div className="w-full px-[var(--spacing-gutter)] py-[var(--spacing-space-md)] grid grid-cols-1 xl:grid-cols-12 gap-[var(--spacing-gutter)] items-start animate-fade-in-up">
         
         {/* ── LEFT: Configuration & Templates (7 Cols) ── */}
         <div className="xl:col-span-7 flex flex-col gap-[var(--spacing-space-md)]">
@@ -62,7 +62,7 @@ export default function ReportSynthesisPage() {
                   <div
                     key={template.id}
                     onClick={() => setSelectedTemplate(template.id)}
-                    className={`p-[var(--spacing-space-md)] rounded-[var(--radius-md)] border-2 cursor-pointer transition-all ${
+                    className={`card-hover p-[var(--spacing-space-md)] rounded-[var(--radius-md)] border-2 cursor-pointer transition-all ${
                       isSelected 
                         ? 'bg-surface-container-low border-primary shadow-sm' 
                         : 'bg-surface-container-lowest border-surface-container hover:border-outline-variant hover:bg-surface-container-low/50'
