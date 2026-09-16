@@ -102,6 +102,7 @@ async def generate_report_job(data: GenerateRequest) -> JSONResponse:
             "progress": 0,
             "error": None,
             "result": None,
+            "agent_logs": [],
             "request": data.model_dump(),
             "created_at": time.time(),
             "updated_at": time.time(),
@@ -116,6 +117,14 @@ async def generate_report_job(data: GenerateRequest) -> JSONResponse:
             def on_progress(step_index: int, step_label: str) -> None:
                 _set_job_state(job_id, step_index=step_index, step_label=step_label, progress=_pipeline_progress(step_index))
 
+            def on_agent(agent: str, status: str) -> None:
+                with jobs_lock:
+                    current = jobs.get(job_id)
+                    if current is None:
+                        return
+                    current.setdefault("agent_logs", []).append({"agent": agent, "status": status, "timestamp": time.time()})
+                    current["updated_at"] = time.time()
+
             result = pipeline.run(
                 question=data.question,
                 report_type=data.report_type,
@@ -123,6 +132,7 @@ async def generate_report_job(data: GenerateRequest) -> JSONResponse:
                 doc_ids=data.doc_ids,
                 title=data.title,
                 progress_callback=on_progress,
+                agent_callback=on_agent,
             )
             result.update(_report_links(result["report_id"]))
             _set_job_state(job_id, status="needs_review", step_index=4, step_label=PIPELINE_STEPS[4], progress=100, result=result)
@@ -147,6 +157,7 @@ async def get_report_job(job_id: str) -> JSONResponse:
         "step_label": job["step_label"],
         "progress": job["progress"],
         "error": job["error"],
+        "agent_logs": job.get("agent_logs", []),
         "result": job["result"],
         "created_at": job.get("created_at"),
         "updated_at": job.get("updated_at"),

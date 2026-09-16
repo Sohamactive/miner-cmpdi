@@ -48,6 +48,7 @@ class ReportPipeline:
         doc_ids: list[str] | None = None,
         title: str = "",
         progress_callback: Callable[[int, str], None] | None = None,
+        agent_callback: Callable[[str, str], None] | None = None,
     ) -> dict:
         """Full pipeline: gather → draft → validate → assemble → needs_review."""
         start_time = time.time()
@@ -82,7 +83,7 @@ class ReportPipeline:
         # Phase 2: Draft sections
         notify(1, "Drafting sections")
         headings = custom_sections or section_names(template)
-        SpecializedDraftAgent().run(state, headings)
+        SpecializedDraftAgent().run(state, headings, progress_callback=agent_callback)
         if "citations" in section_names(template):
             state.sections["citations"] = state.sections.get(
                 "citations",

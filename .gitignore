@@ -32,8 +32,39 @@ generated_proposals/
 # OS
 .DS_Store
 Thumbs.db
+
 .freebuff/
 
 # Local environment files and secrets
 **/.env
 **/.env.*
+
+# Frontend dependencies
+frontend/node_modules/
+node_modules/
+dist/
+.env
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/.freebuff/

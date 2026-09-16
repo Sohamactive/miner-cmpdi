@@ -9,6 +9,7 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock, Thread
 
@@ -60,6 +61,8 @@ def _scan_uploads() -> list[dict]:
             "ext": p.suffix.lower().lstrip("."),
             "path": str(p),
             "bytes": p.stat().st_size,
+            "modified_at_epoch": p.stat().st_mtime,
+            "modified_at": datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat(),
         })
     return items
 
@@ -74,12 +77,22 @@ def _scan_batches() -> list[dict]:
             continue
         merged = d / "merged.md"
         result = d / "result.json"
+
+        # Best-effort "last activity" timestamp for dashboards.
+        candidate_paths = [p for p in (merged, result) if p.exists()]
+        if candidate_paths:
+            last_mtime = max(p.stat().st_mtime for p in candidate_paths)
+        else:
+            last_mtime = d.stat().st_mtime
+
         out.append({
             "doc_id": d.name,
             "batch_dir": str(d),
             "has_merged": merged.exists(),
             "has_result": result.exists(),
             "ready_to_index": merged.exists() and result.exists(),
+            "modified_at_epoch": last_mtime,
+            "modified_at": datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat(),
         })
     return out
 
