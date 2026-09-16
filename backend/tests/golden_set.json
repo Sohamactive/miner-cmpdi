@@ -1,0 +1,86 @@
+{
+  "facts": [
+    {
+      "entity": "ECL",
+      "metric": "Executives",
+      "period": "31.3.84",
+      "value": 2644.0,
+      "unit": "persons",
+      "document_id": "ad2b466c0ef5dd1623f555225d39e38d27b8e9ad5a51f5c18d757775e8da806f",
+      "page_range": "1-3",
+      "evidence_text": "ECL 31.3.84 2,644 10,343 9,721 50,411 118,464"
+    },
+    {
+      "entity": "ECL",
+      "metric": "Workers/Miners",
+      "period": "31.3.84",
+      "value": 91415.0,
+      "unit": "persons",
+      "document_id": "ad2b466c0ef5dd1623f555225d39e38d27b8e9ad5a51f5c18d757775e8da806f",
+      "page_range": "1-3",
+      "evidence_text": "ECL 31.3.84 91,415 99,447"
+    },
+    {
+      "entity": "BCCL",
+      "metric": "Executives",
+      "period": "31.3.84",
+      "value": 2794.0,
+      "unit": "persons",
+      "document_id": "ad2b466c0ef5dd1623f555225d39e38d27b8e9ad5a51f5c18d757775e8da806f",
+      "page_range": "1-3",
+      "evidence_text": "BCCL 31.3.84 2,794 8,328 46,654 105,239 172,334"
+    },
+    {
+      "entity": "WCL",
+      "metric": "Total manpower",
+      "period": "31.3.85",
+      "value": 173431.0,
+      "unit": "persons",
+      "document_id": "ad2b466c0ef5dd1623f555225d39e38d27b8e9ad5a51f5c18d757775e8da806f",
+      "page_range": "1-3",
+      "evidence_text": "WCL 31.3.85 2,583 7,746 8,009 40,201 114,892 173,431"
+    },
+    {
+      "entity": "CIL",
+      "metric": "Total manpower",
+      "period": "31.3.84",
+      "value": 659599.0,
+      "unit": "persons",
+      "document_id": "ad2b466c0ef5dd1623f555225d39e38d27b8e9ad5a51f5c18d757775e8da806f",
+      "page_range": "1-3",
+      "evidence_text": "CIL 31.3.84 283 155 644 44 211 1,337* Total 31.3.84 12,099 34,420 35,445 172,833 404,802 659,599*"
+    }
+  ],
+  "questions": [
+    {
+      "question": "How many executives did ECL have as of 31.3.84?",
+      "expected_value": 2644.0,
+      "expected_unit": "persons",
+      "expected_status": "SUPPORTED"
+    },
+    {
+      "question": "What was the workforce of WCL as of 31.3.85?",
+      "expected_value": 173431.0,
+      "expected_unit": "persons",
+      "expected_status": "SUPPORTED"
+    },
+    {
+      "question": "How many executives did BCCL have as of 31.3.84?",
+      "expected_value": 2794.0,
+      "expected_unit": "persons",
+      "expected_status": "SUPPORTED"
+    },
+    {
+      "question": "What was CIL's total manpower in 1983-84?",
+      "expected_value": 659599.0,
+      "expected_unit": "persons",
+      "expected_status": "SUPPORTED"
+    },
+    {
+      "question": "How many workers/miners did ECL have as of 31.3.84?",
+      "expected_value": 91415.0,
+      "expected_unit": "persons",
+      "expected_status": "SUPPORTED"
+    }
+  ]
+}

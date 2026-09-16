@@ -1,6 +1,6 @@
 # 01 — Problem Statement (SIH26023)
 
-> Status: DRAFT — nothing locked. Source: official PS text below. Interpretation follows; PS wins conflicts.
+
 
 ## 1. Verbatim PS
 
