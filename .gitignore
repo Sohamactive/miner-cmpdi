@@ -33,12 +33,12 @@ generated_proposals/
 .DS_Store
 Thumbs.db
 
+
 .freebuff/
 
 # Local environment files and secrets
 **/.env
 **/.env.*
-
 # Frontend dependencies
 frontend/node_modules/
 node_modules/

@@ -10,7 +10,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="/reports" replace />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="ai-query" element={<AIQueryPage />} />
         <Route path="topics" element={<TopicExplorerPage />} />
