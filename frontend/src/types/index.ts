@@ -124,6 +124,7 @@ export interface NavItem {
   path: string;
   label: string;
   icon: string;
+  sidebarLabel?: string;
 }
 // ---------------------------------------------------------------------------
 // AI Query & Evidence Viewer

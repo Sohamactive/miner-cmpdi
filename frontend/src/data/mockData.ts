@@ -1,8 +1,10 @@
 import type {
-
   KPIData, PipelineStepData, AssetBreakdownItem, GalleryCard,
   AuditRecord, ReportSection, SeamReserveRow, ReviewChecklist,
   ApprovalAuditEntry, UserProfile, ReportTemplate, NavItem,
+  ArchiveDoc, BoreholeLog, ClusterPoint, ContextVector,
+  EvidenceDocument, QueryStreamEvent, SeamRow, SecondaryTopic,
+  Topic, TopicDomain,
 } from '@/types';
 
 // ── Navigation ──
@@ -195,18 +197,7 @@ export const reportTemplates: ReportTemplate[] = [
   { id: 'env-compliance', title: 'Environmental Compliance Report', description: 'Forest clearance status, compensatory afforestation, riparian buffer analysis, and MOEFCC compliance verification.', icon: 'eco', category: 'Environment', estimatedTime: '~12 min' },
   { id: 'safety-audit', title: 'Mine Safety Audit Report', description: 'DGMS compliance, spontaneous combustion risk, slope stability, and statutory regulatory adherence matrix.', icon: 'health_and_safety', category: 'Safety', estimatedTime: '~10 min' },
   { id: 'comprehensive', title: 'Comprehensive Synthesis Report', description: 'Full geo-technical synthesis combining geological, environmental, safety, and operational parameters for expansion planning.', icon: 'auto_awesome', category: 'Synthesis', estimatedTime: '~25 min' },
-
-  ArchiveDoc,
-  BoreholeLog,
-  ClusterPoint,
-  ContextVector,
-  EvidenceDocument,
-  QueryStreamEvent,
-  SeamRow,
-  SecondaryTopic,
-  Topic,
-  TopicDomain,
-} from "../types";
+];
 
 // ---------------------------------------------------------------------------
 // AI Query & Evidence Viewer — mock evidence + a scripted event timeline used
