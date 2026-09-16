@@ -54,6 +54,9 @@ class QdrantStore:
             )])
 
         try:
+            if not self.client.collection_exists(self.collection):
+                logger.warning("Qdrant collection '%s' is not initialized; returning no semantic results", self.collection)
+                return []
             return self.client.query_points(
                 collection_name=self.collection,
                 query=list(vector),

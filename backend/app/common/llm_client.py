@@ -31,6 +31,20 @@ def _is_rate_limit_error(error: Exception) -> bool:
     return "429" in error_text or "resource_exhausted" in error_text or "quota" in error_text
 
 
+def _is_retryable_error(error: Exception) -> bool:
+    error_text = str(error).lower()
+    return (
+        _is_rate_limit_error(error)
+        or "503" in error_text
+        or "500 internal" in error_text
+        or "unavailable" in error_text
+        or "server disconnected" in error_text
+        or "remoteprotocolerror" in error_text
+        or "remote protocol" in error_text
+        or "connection reset" in error_text
+    )
+
+
 def _extract_json_payload(raw_text: str) -> str:
     text = raw_text.strip()
     if text.startswith("```"):
@@ -82,13 +96,13 @@ def _gemini_json_call(prompt: str, *, model: str | None = None) -> dict[str, Any
             return json.loads(_extract_json_payload(raw_text))
         except Exception as error:
             last_error = error
-            if not _is_rate_limit_error(error):
+            if not _is_retryable_error(error):
                 raise
             suggested_delay = _extract_retry_delay(error)
             backoff = suggested_delay if suggested_delay else BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
             backoff = min(backoff, 60.0)
             if attempt < MAX_RETRIES:
-                logger.warning("Rate limited on attempt %d/%d, waiting %.1fs", attempt, MAX_RETRIES, backoff)
+                logger.warning("Retryable LLM error on attempt %d/%d, waiting %.1fs", attempt, MAX_RETRIES, backoff)
                 time.sleep(backoff)
     raise last_error  # type: ignore[misc]
 
@@ -108,30 +122,40 @@ def _bedrock_json_call(prompt: str, *, model: str | None = None) -> dict[str, An
     )
 
     body = {
-        "messages": [{"role": "user", "content": [{"text": prompt}]}],
-        "inferenceConfig": {
-            "maxTokens": 4096,
-            "temperature": 0.1,
-            "topP": 0.9,
-        },
-        "responseFormat": {"type": "json_object"},
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 4096,
+        "temperature": 0.1,
+        "top_p": 0.9,
     }
 
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.invoke_model(modelId=model_id, body=json.dumps(body))
-            raw_text = json.loads(response["body"].read())["output"]["message"]["content"][0]["text"]
+            payload = json.loads(response["body"].read())
+            choices = payload.get("choices")
+            if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+                message = choices[0].get("message", {})
+                content = message.get("content", "") if isinstance(message, dict) else ""
+            else:
+                output = payload.get("output", payload)
+                if isinstance(output, dict) and isinstance(output.get("message"), dict):
+                    content = output["message"].get("content", "")
+                else:
+                    content = output.get("content", "") if isinstance(output, dict) else ""
+            if isinstance(content, list):
+                content = content[0].get("text", "") if content and isinstance(content[0], dict) else ""
+            raw_text = str(content)
             return json.loads(_extract_json_payload(raw_text))
         except Exception as error:
             last_error = error
-            if not _is_rate_limit_error(error):
+            if not _is_retryable_error(error):
                 raise
             suggested_delay = _extract_retry_delay(error)
             backoff = suggested_delay if suggested_delay else BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
             backoff = min(backoff, 60.0)
             if attempt < MAX_RETRIES:
-                logger.warning("Rate limited on attempt %d/%d, waiting %.1fs", attempt, MAX_RETRIES, backoff)
+                logger.warning("Retryable LLM error on attempt %d/%d, waiting %.1fs", attempt, MAX_RETRIES, backoff)
                 time.sleep(backoff)
     raise last_error  # type: ignore[misc]
 

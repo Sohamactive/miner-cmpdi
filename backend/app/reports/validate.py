@@ -127,45 +127,79 @@ def extract_claims_from_sections(
 ) -> list[Claim]:
     """Extract numeric claims from report sections for validation.
 
-    Looks for numbers in paragraphs and creates Claim objects.
+    Resolve explicit [F0]/[C0] references first, then validate the numbers
+    in those paragraphs against the referenced evidence text.
     """
     claims: list[Claim] = []
     all_items = evidence.facts + evidence.chunks
+    reference_pattern = re.compile(r"\b([FC])(\d+)\b")
+    number_pattern = re.compile(
+        r"(?<![A-Za-z])\d[\d,]*(?:\.\d+)?"
+        r"(?:\s*(?:MT|lakh|lakhs|tonne|tonnes|crore|crores))?\b",
+        re.IGNORECASE,
+    )
+
+    def referenced_items(text: str, fact_ids: list[str]) -> list[EvidenceItem]:
+        references = reference_pattern.findall(text)
+        references.extend(reference_pattern.findall(" ".join(fact_ids)))
+        items: list[EvidenceItem] = []
+        seen: set[int] = set()
+        for prefix, index_text in references:
+            index = int(index_text)
+            source_items = evidence.facts if prefix == "F" else evidence.chunks
+            if index < len(source_items) and id(source_items[index]) not in seen:
+                items.append(source_items[index])
+                seen.add(id(source_items[index]))
+        return items
+
+    def numbers_in_paragraph(text: str) -> list[float]:
+        values: list[float] = []
+        for match in number_pattern.finditer(text):
+            start = max(0, match.start() - 8)
+            context = text[start:match.end()].lower()
+            if "page=" in context or "doc=" in context:
+                continue
+            try:
+                values.append(float(match.group(0).split()[0].replace(",", "")))
+            except ValueError:
+                continue
+        return values
 
     for section in sections:
         paragraphs = getattr(section, "paragraphs", []) or []
         fact_ids = getattr(section, "fact_ids", []) or []
 
         for para in paragraphs:
-            # Find numbers in paragraph text
-            numbers = re.findall(r"\b\d+(?:\.\d+)?(?:\s*(?:MT|lakh|tonne|tonnes| crore| lakh-tonne))?\b", str(para))
+            paragraph_text = str(para)
+            numbers = numbers_in_paragraph(paragraph_text)
             if not numbers:
                 continue
 
-            # Match number to evidence
-            for num_str in numbers:
-                try:
-                    value = float(re.sub(r"[^\d.]", "", num_str))
-                except ValueError:
-                    continue
+            items = referenced_items(paragraph_text, fact_ids)
+            if not items:
+                items = [
+                    item for item in all_items
+                    if item.value is not None
+                    and any(abs(item.value - value) < 0.01 for value in numbers)
+                ]
 
-                # Find matching evidence item
-                for item in all_items:
-                    if item.value is not None and abs(item.value - value) < 0.01:
-                        claims.append(Claim(
-                            claim_text=str(para)[:300],
-                            fact_id=None,
-                            document_id=item.document_id,
-                            page_range=item.page_range,
-                            evidence_text=item.text[:500],
-                            value=item.value,
-                            unit=item.unit,
-                            metric=item.metric,
-                            entity=item.entity,
-                            period=item.period,
-                            confidence=item.score,
-                        ))
-                        break
+            for item in items:
+                for value in numbers:
+                    if item.value is not None and abs(item.value - value) >= 0.01:
+                        continue
+                    claims.append(Claim(
+                        claim_text=paragraph_text[:300],
+                        fact_id=None,
+                        document_id=item.document_id,
+                        page_range=item.page_range,
+                        evidence_text=item.text[:500],
+                        value=item.value if item.value is not None else value,
+                        unit=item.unit,
+                        metric=item.metric,
+                        entity=item.entity,
+                        period=item.period,
+                        confidence=item.score,
+                    ))
 
     # Dedupe by (value, document_id, page_range)
     seen: set[tuple] = set()

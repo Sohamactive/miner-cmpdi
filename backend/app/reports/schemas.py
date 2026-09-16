@@ -68,6 +68,9 @@ class Claim(BaseModel):
     evidence_text: str = ""
     value: float | None = None
     unit: str | None = None
+    metric: str | None = None
+    entity: str | None = None
+    period: str | None = None
     validation_status: ValidationStatus = ValidationStatus.UNSUPPORTED
     validation_reasons: list[str] = []
     confidence: float = 0.0
