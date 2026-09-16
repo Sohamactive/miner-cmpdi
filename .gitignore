@@ -33,6 +33,9 @@ generated_proposals/
 Thumbs.db
 # Frontend dependencies
 frontend/node_modules/
+node_modules/
+dist/
+.env
 
 # Environment variables
 frontend/.env
