@@ -93,11 +93,61 @@ def _gemini_json_call(prompt: str, *, model: str | None = None) -> dict[str, Any
     raise last_error  # type: ignore[misc]
 
 
+def _bedrock_json_call(prompt: str, *, model: str | None = None) -> dict[str, Any]:
+    import boto3
+    from botocore.config import Config
+
+    region = os.getenv("AWS_REGION", "us-east-1")
+    model_id = model or os.getenv("BEDROCK_MODEL", "google.gemma-4-31b")
+    timeout = int(os.getenv("LLM_TIMEOUT_MS", "120000")) / 1000
+
+    client = boto3.client(
+        "bedrock-runtime",
+        region_name=region,
+        config=Config(read_timeout=timeout, connect_timeout=10),
+    )
+
+    body = {
+        "messages": [{"role": "user", "content": [{"text": prompt}]}],
+        "inferenceConfig": {
+            "maxTokens": 4096,
+            "temperature": 0.1,
+            "topP": 0.9,
+        },
+        "responseFormat": {"type": "json_object"},
+    }
+
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.invoke_model(modelId=model_id, body=json.dumps(body))
+            raw_text = json.loads(response["body"].read())["output"]["message"]["content"][0]["text"]
+            return json.loads(_extract_json_payload(raw_text))
+        except Exception as error:
+            last_error = error
+            if not _is_rate_limit_error(error):
+                raise
+            suggested_delay = _extract_retry_delay(error)
+            backoff = suggested_delay if suggested_delay else BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
+            backoff = min(backoff, 60.0)
+            if attempt < MAX_RETRIES:
+                logger.warning("Rate limited on attempt %d/%d, waiting %.1fs", attempt, MAX_RETRIES, backoff)
+                time.sleep(backoff)
+    raise last_error  # type: ignore[misc]
+
+
+def _call_provider(prompt: str, *, model: str | None = None) -> dict[str, Any]:
+    provider = os.getenv("LLM_PROVIDER", "gemini").lower()
+    if provider == "bedrock":
+        return _bedrock_json_call(prompt, model=model)
+    return _gemini_json_call(prompt, model=model)
+
+
 def generate_json(prompt: str, *, model: str | None = None, list_key: str | None = None) -> dict[str, Any]:
     """Call LLM and return parsed JSON. Raises on failure."""
-    logger.info("LLM request -> model=%s, prompt_length=%d", model or os.getenv("LLM_MODEL", "gemini-2.5-flash"), len(prompt))
+    logger.info("LLM request -> provider=%s, model=%s, prompt_length=%d", os.getenv("LLM_PROVIDER", "gemini"), model or os.getenv("LLM_MODEL", "gemini-2.5-flash"), len(prompt))
 
-    payload = _gemini_json_call(prompt, model=model)
+    payload = _call_provider(prompt, model=model)
 
     if isinstance(payload, list):
         if list_key is None:
