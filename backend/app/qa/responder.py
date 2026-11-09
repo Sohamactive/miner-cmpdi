@@ -16,8 +16,8 @@ from typing import List, Optional
 
 from app.common.llm_client import generate_json, generate_json_or_none
 from app.common.validator import validate_claim, ClaimStatus
-from app.qa.models import QAClaim, QAResponse
-from app.extraction.postgres import create_session, search_facts
+from app.review.qa.models import QAClaim, QAResponse
+from app.extraction.postgres import create_session, search_chunks, search_facts
 from app.knowledge.retrieval import SemanticRetriever
 from app.knowledge.embeddings import FastEmbedProvider
 from app.knowledge.qdrant_store import QdrantStore
@@ -46,7 +46,7 @@ class Responder:
     def retriever(self):
         if self._retriever is None:
             self._retriever = SemanticRetriever(
-                QdrantStore(path="/Users/krish/miner-cmpdi/qdrant_storage"),
+                QdrantStore(),
                 FastEmbedProvider()
             )
         return self._retriever
@@ -60,15 +60,25 @@ class Responder:
     def answer(self) -> QAResponse:
         """Run the full fact-first + RAG pipeline and return a validated QAResponse."""
         response = QAResponse(answer_text="", claims=[])
+        retrieval_question = _build_retrieval_question(
+            self.question,
+            self.conversation_history,
+        )
 
         # ── Step A: Structured fact lookup ───────────────────────────────────
         parsed = _parse_question_for_facts(self.question)
-        facts = search_facts(
-            self.session,
-            entity=parsed.get("entity"),
-            metric=parsed.get("metric"),
-            period=parsed.get("period"),
-            limit=5,
+        # Never answer a broad question with the first arbitrary fact in the
+        # table. At least one meaningful filter must be present.
+        facts = (
+            search_facts(
+                self.session,
+                entity=parsed.get("entity"),
+                metric=parsed.get("metric"),
+                period=parsed.get("period"),
+                limit=5,
+            )
+            if parsed
+            else []
         )
 
         if facts:
@@ -106,9 +116,24 @@ class Responder:
             return response
 
         # ── Step B: Semantic fallback via Qdrant + LLM ───────────────────────
-        results = self.retriever.search(
-            self.question, limit=5, document_id=self.document_id
+        lexical_results = _chunk_results(
+            search_chunks(
+                self.session,
+                retrieval_question,
+                document_id=self.document_id,
+                limit=5,
+            )
         )
+        results = self.retriever.search(
+            retrieval_question, limit=5, document_id=self.document_id
+        )
+
+        # Overview questions are better served by chunks containing the named
+        # entity than by nearest-neighbour numeric tables.
+        if parsed.get("entity") and not parsed.get("metric") and lexical_results:
+            results = lexical_results
+        elif not results:
+            results = lexical_results
 
         if not results:
             response.answer_text = "No reliable evidence found in the corpus."
@@ -134,17 +159,139 @@ class Responder:
             response.answer_text = answer_text
             response.claims = claims
             return response
-
         # Parse LLM response (expected JSON with answer_text and claims)
         answer_text = llm_result.get("answer_text", "")
         raw_claims = llm_result.get("claims", [])
 
         # Validate each claim against retrieved evidence
-        validated_claims = _validate_llm_claims(raw_claims, results)
+        validated_claims = _validate_llm_claims(
+            raw_claims,
+            results,
+            period=parsed.get("period"),
+        )
+        usable_claims = [
+            claim
+            for claim in validated_claims
+            if claim.status in {ClaimStatus.SUPPORTED, ClaimStatus.NEEDS_REVIEW}
+        ]
+        if not validated_claims and answer_text.strip():
+            unavailable = "information is not available" in answer_text.lower()
+            if not unavailable:
+                response.answer_text = answer_text
+                return response
+
+        if not usable_claims and parsed.get("entity") and results:
+            response.answer_text = _draft_overview_response(
+                parsed["entity"],
+                results,
+            )
+            response.claims = [
+                QAClaim(
+                    value="Overview",
+                    document_id=results[0].document_id,
+                    page_range=results[0].page_range,
+                    evidence_snippet=results[0].text[:300],
+                    status=ClaimStatus.NEEDS_REVIEW,
+                )
+            ]
+            return response
+
+        if not usable_claims:
+            response.answer_text = "The information is not available in the provided documents."
+            response.claims = []
+            return response
+
+        if len(usable_claims) != len(validated_claims):
+            verified_values = ", ".join(
+                f"{_format_value(claim.value)}{f' {claim.unit}' if claim.unit else ''}"
+                for claim in usable_claims
+            )
+            answer_text = (
+                "I could verify only these values from the cited evidence: "
+                f"{verified_values}. Other generated figures were not supported."
+            )
 
         response.answer_text = answer_text
-        response.claims = validated_claims
+        response.claims = usable_claims
         return response
+
+
+def _build_retrieval_question(
+    question: str,
+    conversation_history: Optional[List[dict]],
+) -> str:
+    """Keep the current wording while adding context for conversational follow-ups."""
+    if not conversation_history:
+        return question
+
+    previous_user_messages = [
+        str(message.get("content", "")).strip()
+        for message in conversation_history[-6:]
+        if message.get("role") == "user" and str(message.get("content", "")).strip()
+    ]
+    if not previous_user_messages:
+        return question
+
+    current_lower = question.lower()
+    follow_up_markers = (
+        "it", "its", "they", "them", "that", "those", "more", "also",
+        "what about", "how about", "and ", "why ", "how many",
+    )
+    if any(marker in current_lower for marker in follow_up_markers):
+        return f"{previous_user_messages[-1]}\nFollow-up: {question}"
+    return question
+
+
+def _chunk_results(chunks) -> list:
+    """Adapt PostgreSQL chunks to the semantic result contract used by QA."""
+    from app.knowledge.retrieval import SemanticResult
+
+    return [
+        SemanticResult(
+            score=1.0,
+            text=chunk.text,
+            document_id=chunk.document_id,
+            filename=chunk.filename,
+            page_range=chunk.page_range,
+            batch=chunk.batch,
+            section=chunk.section,
+        )
+        for chunk in chunks
+    ]
+
+
+def _draft_overview_response(entity: str, results: list) -> str:
+    """Provide a useful, explicitly qualified overview when no numeric claim is needed."""
+    best = next(
+        (result for result in results if entity.lower() in result.text.lower()),
+        results[0],
+    )
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?])\s+", best.text.replace("\n", " "))
+        if sentence.strip()
+    ]
+    excerpt = next(
+        (
+            sentence
+            for sentence in sentences
+            if "under the ministry of coal" in sentence.lower()
+            or "administrative ministry" in sentence.lower()
+        ),
+        next(
+            (
+                sentence
+                for sentence in sentences
+                if entity.lower() in sentence.lower()
+            ),
+            sentences[0] if sentences else best.text[:300],
+        ),
+    )
+    return (
+        f"The indexed documents do not contain a standalone profile of {entity}. "
+        f"They do show this relationship in the available evidence: {excerpt} "
+        "Ask a follow-up about its companies, production, manpower, or a specific year."
+    )
 
 
 def _parse_question_for_facts(question: str) -> dict:
@@ -171,6 +318,10 @@ def _parse_question_for_facts(question: str) -> dict:
         period_match = re.search(r"31\.?3\.?(19|20)\d{2}", question)
         if period_match:
             result["period"] = period_match.group(0)
+        else:
+            year_match = re.search(r"\b((?:19|20)\d{2})\b", question)
+            if year_match:
+                result["period"] = year_match.group(1)
 
     # Metric keywords
     metric_keywords = {
@@ -192,6 +343,9 @@ def _parse_question_for_facts(question: str) -> dict:
         if kw in q_lower:
             result["metric"] = metric
             break
+
+    if "ministry of coal" in q_lower:
+        result["entity"] = "Ministry of Coal"
 
     return result
 
@@ -255,7 +409,12 @@ Each claim must have value (number), unit (string or null), and source_reference
     return generate_json_or_none(prompt)
 
 
-def _validate_llm_claims(raw_claims: list, qdrant_results) -> list[QAClaim]:
+def _validate_llm_claims(
+    raw_claims: list,
+    qdrant_results,
+    *,
+    period: str | None = None,
+) -> list[QAClaim]:
     """Validate LLM-extracted claims against retrieved chunks."""
     from app.common.validator import validate_claim
 
@@ -298,7 +457,7 @@ def _validate_llm_claims(raw_claims: list, qdrant_results) -> list[QAClaim]:
             value=value,
             unit=unit,
             entity=None,
-            period=None,
+            period=period,
             evidence_text=best_result.text,
             document_id=best_result.document_id,
             page_range=best_result.page_range,

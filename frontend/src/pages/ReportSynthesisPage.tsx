@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, Play, ShieldCheck } from 'lucide-react'
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, Download, FileText, Play, RefreshCw, ShieldCheck } from 'lucide-react'
 
 import { API_BASE_URL } from '@/api/client'
 
 type AgentLog = { agent: string; status: string; timestamp?: number; duration_seconds?: number; error?: string | null }
-type ReportResult = { report_id: number; status: string; title: string; sections: unknown[]; claims: Array<{ validation_status: string }>; report_url: string; download_url: string; agent_logs?: AgentLog[] }
+type ReportClaim = { id?: number; claim_text: string; evidence_text: string; value: number | null; unit: string | null; document_id?: string | null; page_range?: string | null; validation_status: string; confidence?: number }
+type ReportSection = { heading: string; paragraphs?: string[]; fact_ids?: string[]; chart_spec?: Record<string, unknown> | null }
+type ReportResult = { report_id: number; status: string; title: string; sections: ReportSection[]; claims: ReportClaim[]; report_url?: string; download_url?: string; agent_logs?: AgentLog[] }
 type Job = { job_id: string; status: string; progress: number; step_label: string; error: string | null; result: ReportResult | null; agent_logs: AgentLog[] }
 
 const API = '/api'
-const steps = ['Gathering evidence', 'Drafting sections', 'Validating claims', 'Assembling report', 'Done']
+const steps = ['Gathering evidence', 'Drafting sections', 'Validating claims', 'Assembling report', 'Saving report', 'Done']
 
 export default function ReportSynthesisPage() {
   const [question, setQuestion] = useState('Summarize coal production and offtake figures from indexed documents with document and page references.')
@@ -17,6 +19,8 @@ export default function ReportSynthesisPage() {
   const [job, setJob] = useState<Job | null>(null)
   const [error, setError] = useState('')
   const [approving, setApproving] = useState(false)
+  const [reportIdInput, setReportIdInput] = useState('')
+  const [loadingReport, setLoadingReport] = useState(false)
   const running = job?.status === 'queued' || job?.status === 'running'
   const result = job?.result
   const logs = useMemo(() => result?.agent_logs?.length ? result.agent_logs : job?.agent_logs ?? [], [job, result])
@@ -57,6 +61,48 @@ export default function ReportSynthesisPage() {
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Approval failed.') } finally { setApproving(false) }
   }
 
+  async function loadReport() {
+    const reportId = Number(reportIdInput)
+    if (!Number.isInteger(reportId) || reportId < 1) {
+      setError('Enter a valid report ID, such as 35.')
+      return
+    }
+    setLoadingReport(true)
+    setError('')
+    try {
+      const response = await fetch(`${API}/reports/${reportId}`)
+      if (!response.ok) throw new Error(`Could not load report (${response.status})`)
+      const loaded = await response.json() as {
+        id: number
+        status: string
+        title: string
+        sections: ReportSection[]
+        claims: ReportClaim[]
+      }
+      setJob({
+        job_id: `loaded-${loaded.id}`,
+        status: loaded.status,
+        progress: 100,
+        step_label: loaded.status === 'approved' ? 'Approved' : 'Ready for review',
+        error: null,
+        result: {
+          report_id: loaded.id,
+          status: loaded.status,
+          title: loaded.title,
+          sections: loaded.sections,
+          claims: loaded.claims,
+          report_url: `/api/reports/${loaded.id}`,
+          download_url: `/api/reports/${loaded.id}/download.docx`,
+        },
+        agent_logs: [],
+      })
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load report.')
+    } finally {
+      setLoadingReport(false)
+    }
+  }
+
   const statusLabel = job?.status === 'needs_review' ? 'Ready for review' : job?.status === 'failed' ? 'Generation failed' : job?.status ?? 'Awaiting request'
 
   const resolveApiLink = (path: string) => {
@@ -70,16 +116,16 @@ export default function ReportSynthesisPage() {
     return `${base}${path}`
   }
 
-  const downloadHref = result ? resolveApiLink(result.download_url) : ''
-  const reportHref = result ? resolveApiLink(result.report_url) : ''
+  const downloadHref = result?.download_url ? resolveApiLink(result.download_url) : ''
+  const reportHref = result?.report_url ? resolveApiLink(result.report_url) : ''
 
   return <div className="report-workspace"><div className="report-shell">
     <header className="report-hero"><div><div className="eyebrow"><span className="eyebrow-dot" /> Report workstation / live pipeline</div><h1>Evidence to report.</h1><p>Build a cited parliamentary brief from indexed CMPDI and CIL records. Every run leaves a readable processing trail.</p></div><div className="hero-mark" aria-hidden="true"><span>R</span><span>E</span><span>P</span></div></header>
     <main className="report-grid">
-      <section className="composer-panel"><div className="panel-kicker">01 / Define brief</div><h2>What should this report answer?</h2><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question grounded in indexed documents..." /><div className="field-row"><label>Report title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Template<select value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="parliamentary_reply">Parliamentary reply</option><option value="geological_summary">Geological summary</option></select></label></div><div className="composer-footer"><span className="source-note"><ShieldCheck size={15} /> Uses PostgreSQL facts + Qdrant evidence</span><button className="primary-action" onClick={() => void generate()} disabled={!question.trim() || running}><Play size={16} /> {running ? 'Generating' : 'Generate report'}</button></div>{error && <div className="error-note"><CircleAlert size={16} /> {error}</div>}</section>
+      <section className="composer-panel"><div className="panel-kicker">01 / Define brief</div><h2>What should this report answer?</h2><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question grounded in indexed documents..." /><div className="field-row"><label>Report title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Template<select value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="parliamentary_reply">Parliamentary reply</option><option value="geological_summary">Geological summary</option></select></label></div><div className="composer-footer"><span className="source-note"><ShieldCheck size={15} /> Uses PostgreSQL facts + Qdrant evidence</span><button className="primary-action" onClick={() => void generate()} disabled={!question.trim() || running}><Play size={16} /> {running ? 'Generating' : 'Generate report'}</button></div><div className="load-report"><label>Open saved report<input value={reportIdInput} onChange={(event) => setReportIdInput(event.target.value)} inputMode="numeric" placeholder="Report ID, e.g. 35" /></label><button className="secondary-action" onClick={() => void loadReport()} disabled={loadingReport}><RefreshCw size={15} /> {loadingReport ? 'Loading' : 'Load report'}</button></div>{error && <div className="error-note"><CircleAlert size={16} /> {error}</div>}</section>
       <section className="run-panel"><div className="panel-heading"><div><div className="panel-kicker">02 / Run ledger</div><h2>Processing status</h2></div><span className={`status-chip ${job?.status ?? 'idle'}`}>{statusLabel}</span></div><div className="progress-track"><span style={{ width: `${job?.progress ?? 0}%` }} /></div><div className="progress-meta"><span>{job?.step_label ?? 'No active run'}</span><strong>{job?.progress ?? 0}%</strong></div><div className="step-list">{steps.map((step, index) => { const active = Boolean(job && index <= Math.floor((job.progress / 100) * (steps.length - 1))); return <div className={`step-row ${active ? 'is-active' : ''}`} key={step}><span className="step-icon">{active ? <CheckCircle2 size={16} /> : <span>{String(index + 1).padStart(2, '0')}</span>}</span><span>{step}</span></div> })}</div></section>
       <section className="ledger-panel"><div className="panel-heading"><div><div className="panel-kicker">03 / Agent ledger</div><h2>What the run has done</h2></div><Activity size={18} className="muted-icon" /></div><div className="agent-list">{logs.length === 0 ? <div className="empty-ledger">Agent events appear here as the report progresses.</div> : logs.map((log) => <div className="agent-row" key={`${log.agent}-${log.timestamp}`}><span className={`agent-state ${log.status}`} /><span className="agent-name">{log.agent.replace('_agent', '')}</span><span className="agent-result">{log.status}</span>{log.duration_seconds ? <span className="agent-time">{log.duration_seconds.toFixed(1)}s</span> : null}</div>)}</div></section>
-      <section className="result-panel"><div className="panel-heading"><div><div className="panel-kicker">04 / Review gate</div><h2>Report output</h2></div>{result && <FileText size={20} className="muted-icon" />}</div>{!result ? <div className="empty-result"><FileText size={30} /><p>Generated report will appear here.</p><span>Run a brief to unlock review and DOCX export.</span></div> : <><div className="result-title"><div><strong>{result.title}</strong><span>Report #{result.report_id} · {result.status}</span></div><ArrowUpRight size={18} /></div><div className="metric-row"><div><strong>{result.sections.length}</strong><span>sections</span></div><div><strong>{result.claims.length}</strong><span>claims</span></div><div><strong>{result.claims.filter((claim) => claim.validation_status === 'SUPPORTED').length}</strong><span>supported</span></div></div><div className="result-actions">{result.status === 'approved' ? <a className="primary-action link-action" href={downloadHref}><Download size={16} /> Download DOCX</a> : <button className="primary-action" onClick={() => void approve()} disabled={approving}><CheckCircle2 size={16} /> {approving ? 'Approving' : 'Approve report'}</button>}<a className="secondary-action" href={reportHref} target="_blank" rel="noreferrer">Open JSON <ArrowUpRight size={15} /></a></div></>}</section>
+      <section className="result-panel"><div className="panel-heading"><div><div className="panel-kicker">04 / Review gate</div><h2>Report output</h2></div>{result && <FileText size={20} className="muted-icon" />}</div>{!result ? <div className="empty-result"><FileText size={30} /><p>Generated report will appear here.</p><span>Run a brief or load a saved report to unlock review.</span></div> : <><div className="result-title"><div><strong>{result.title}</strong><span>Report #{result.report_id} · {result.status}</span></div><ArrowUpRight size={18} /></div><div className="metric-row"><div><strong>{result.sections.length}</strong><span>sections</span></div><div><strong>{result.claims.length}</strong><span>claims</span></div><div><strong>{result.claims.filter((claim) => claim.validation_status === 'SUPPORTED').length}</strong><span>supported</span></div></div><div className="result-actions">{result.status === 'approved' ? <a className="primary-action link-action" href={downloadHref}><Download size={16} /> Download DOCX</a> : <button className="primary-action" onClick={() => void approve()} disabled={approving}><CheckCircle2 size={16} /> {approving ? 'Approving' : 'Approve report'}</button>}      <a className="secondary-action" href={reportHref} target="_blank" rel="noreferrer">Open JSON <ArrowUpRight size={15} /></a></div><div className="review-note">Supported claims have matching evidence and provenance. Derived totals or claims without a direct source remain flagged for review.</div><div className="report-preview"><div className="preview-heading">Readable draft</div>{result.sections.map((section) => <article className="preview-section" key={section.heading}><h3>{section.heading.replaceAll('_', ' ')}</h3>{(section.paragraphs ?? []).map((paragraph, index) => <p key={`${section.heading}-${index}`}>{paragraph}</p>)}</article>)}</div><div className="claims-preview"><div className="preview-heading">Claims and evidence</div>{result.claims.length === 0 ? <p className="preview-empty">No numeric claims were extracted.</p> : result.claims.map((claim, index) => <article className="claim-card" key={claim.id ?? `${claim.claim_text}-${index}`}><div className="claim-card-top"><span className={`claim-status ${claim.validation_status}`}>{claim.validation_status.replace('_', ' ')}</span><strong>{claim.value ?? '—'}{claim.unit ? ` ${claim.unit}` : ''}</strong></div><p>{claim.claim_text}</p><blockquote>{claim.evidence_text}</blockquote><div className="claim-source">{claim.document_id ? `${claim.document_id} · page ${claim.page_range ?? 'range unavailable'}` : 'Direct citation unavailable — keep this claim under review.'}</div></article>)}</div></>}</section>
     </main>
     <footer className="workspace-footer"><span>M.I.N.E.R. / CMPDI evidence reporter</span><span>Live backend connection · No local simulation</span></footer>
   </div></div>

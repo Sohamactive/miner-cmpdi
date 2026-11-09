@@ -1,15 +1,17 @@
 # 06 — Report Generation Pipeline
 
-> Status: BUILDING (Phase 0). Follows `05_RAG_PIPELINE.md`. Source of truth for `backend/app/reports/`.
+> Status: IMPLEMENTED (all phases landed). Remaining gaps: chart *images* are not rendered, per-claim review UI is backend-only, and eval golden lists are placeholders.
+> Follows `05_RAG_PIPELINE.md`. Source of truth for `backend/app/reports/`.
 
 ## 1. What it does (30 sec)
 
 Turns evidence (numbers from PostgreSQL + story from Qdrant) into cited, machine-validated reports you can correct until you like them.
 
 * Default: fixed Parliamentary Reply template (no choices needed).
-* Custom: you say what sections you want, agent follows your spec.
-* Human-in-loop: draft v1 → your feedback → v2 → ... → approve → DOCX download.
+* Custom: you may pass `custom_sections` (validated against the template's slots).
+* Human-in-loop: draft v1 → feedback/review → v2 → ... → approve → DOCX download.
 * Every number must have proof: `{document, page_range, evidence}`. No proof = quarantine, never exported.
+* Charts: the writer may emit a `chart_spec`; the assembler and exporter pass a **textual specification** through. No PNG/image is produced yet (`matplotlib` is a declared dependency but unused).
 
 ## 2. Data flow
 
@@ -26,9 +28,9 @@ User spec: {question, template | custom_sections, doc_ids[]}
   EvidenceBundle { facts, chunks, coverage_warnings }
         |
   [Phase 2 — Writer + Validator + Assembler]
-  LLM draft per section from bundle
+  per-section agents draft from bundle
   -> code validate (SUPPORTED / NEEDS_REVIEW / UNSUPPORTED)
-  -> assemble: fact tables, matplotlib charts, citation footnotes
+  -> assemble: fact tables, chart specifications, citation footnotes
         |
   [Phase 3 — HITL Loop]
   Draft v1 -> user feedback -> v2 -> ... -> approved
@@ -37,21 +39,22 @@ User spec: {question, template | custom_sections, doc_ids[]}
   Async job: queued -> running -> needs_review -> approved -> exported
 ```
 
-## 3. Phase 0 — Contracts + plumbing (no logic yet)
+## 3. Contracts + plumbing
 
-### 3.1 New files
+### 3.1 Files
 
 | File | Owns |
 |------|------|
-| `app/common/llm_client.py` | Provider-agnostic LLM, JSON mode, retry/backoff, extractive fallback |
-| `app/reports/schemas.py` | Pydantic models: `ReportSpec`, `GeneratedReport`, `Claim`, `ReviewDecision` |
-| `app/reports/templates.py` | Template registry: section list + slots + style |
+| `app/common/llm_client.py` | Provider-agnostic LLM (`gemini` \| `bedrock`), JSON mode, retry/backoff with `retry in Ns` parsing, `generate_json` / `generate_json_or_none` |
+| `app/reports/schemas.py` | Pydantic models: `ReportSpec`, `GeneratedReport`, `Claim`, `ReportSection`, `EvidenceBundle`, `ReviewDecision`, `ReportJobStatus` |
+| `app/reports/templates.py` | Template registry: section list + slots + style, `validate_custom_sections()` |
+| `app/reports/state.py` | `ReportState` (agent-owned, versioned) + `apply_agent_update()` which rejects cross-agent writes |
 
-### 3.2 DB tables (extend `extraction/models.py`)
+### 3.2 DB tables (in `extraction/models.py`)
 
 ```
-reports:     id, report_type, status, title, parameters_json, sections_json,
-             version, parent_id, created_at, updated_at
+reports:     id, report_type, status, title, parameters_json (holds question + report_state),
+             sections_json, version, parent_id, created_at, updated_at
 
 claims:      id, report_id, claim_text, fact_id, document_id, page_range,
              evidence_text, value, unit, validation_status, validation_reasons,
@@ -60,23 +63,24 @@ claims:      id, report_id, claim_text, fact_id, document_id, page_range,
 review_decisions: id, report_id, claim_id, action (APPROVE/EDIT/REJECT),
                   reviewer_note, edited_text, created_at
 
-report_jobs: id, job_type, status (queued/running/needs_review/approved/exported),
+report_jobs: id, job_id, report_id, status (queued/running/needs_review/approved/exported),
              step_index, step_label, progress, error, result_json,
              created_at, updated_at
 ```
 
-### 3.3 Template registry
+Note: `report_jobs` is declared but the running app tracks jobs in an in-memory dict in `api/reports.py`; the table is not written yet.
 
-* `parliamentary_reply` (default, fixed): sections = `[preamble, facts_summary, evidence_table, analysis, conclusion, citations]`
-* `geological_summary`: sections = `[overview, geological_data, production_figures, charts, recommendations]`
-* Custom user spec: `custom_sections[]` overrides template section list; unknown slots rejected with `400`.
+### 3.3 Template registry (`templates.py`)
 
-### 3.4 Dependencies (no new pip installs)
+* `parliamentary_reply` (default): `[preamble, facts_summary, evidence_table, production_chart, analysis, conclusion, citations]`
+* `geological_summary`: `[overview, geological_data, production_figures, trend_chart, recommendations, citations]`
+* Custom user spec: `custom_sections[]` overrides the template's section list; names outside the template's slots are rejected (`ValueError` → 400-class behaviour).
 
-All from existing `pyproject.toml`: `fastapi`, `sqlalchemy`, `qdrant-client`, `fastembed`.
-New optional deps for charts/export: `python-docx`, `matplotlib` (to add in Phase 3).
+### 3.4 Dependencies
 
-## 4. Phase 1 — Hybrid evidence retriever
+All installed per `backend/pyproject.toml`: `fastapi[standard]`, `sqlalchemy`, `psycopg[binary]`, `qdrant-client`, `fastembed`, `python-docx`, `matplotlib`, `google-genai`, `boto3`/`botocore`.
+
+## 4. Hybrid evidence retriever
 
 ### 4.1 New file
 
@@ -96,7 +100,7 @@ New optional deps for charts/export: `python-docx`, `matplotlib` (to add in Phas
 
 This phase only gathers evidence. Writing is Phase 2.
 
-## 5. Phase 2 — Writer + validator + assembler
+## 5. Writer + validator + assembler
 
 ### 5.1 New files
 
@@ -122,100 +126,122 @@ Per `01_PROBLEM_STATEMENT.md:48`:
 
 ### 5.4 Assembler (`assembler.py`)
 
-* Fact tables from `facts[]` via `python-docx`.
-* Charts via `matplotlib` (production by year/mine/metric) → PNG in-memory → embed.
-* Citation footnotes: `[{doc, page, evidence}]` per claim.
-* Graceful skip when data absent (per `_archive/initals_2.md:17`).
+* Fact tables from validated claims (`build_fact_table`) — `SUPPORTED` + `NEEDS_REVIEW` rows only, `UNSUPPORTED` skipped.
+* Chart handling: `build_chart_placeholder()` returns the section's `chart_spec` unchanged (production by year/mine/metric is intended, but **no matplotlib PNG is generated yet**).
+* Citation footnotes: `[{doc, page, evidence}]` per claim via `build_citations()`.
+* Section `evidence_table`, `production_figures`, and `facts_summary` get the fact table; empty tables are omitted.
 
-## 6. Phase 3 — HITL loop + jobs + DOCX
+## 6. HITL loop + jobs + DOCX
 
-### 6.1 New files
+### 6.1 Files
 
 | File | Owns |
 |------|------|
-| `app/reports/pipeline.py` | Orchestrator: gather → draft → validate → assemble → HITL loop |
-| `app/reports/exporter.py` | DOCX export: cover, headings, TOC, tables, charts, footnotes |
-| `app/api/reports.py` | Thin HTTP routes (port SOW `routes.py:246-326` pattern) |
-| `app/review/` | Approve/edit/reject per claim + report sign-off (separate module per `03:21`) |
+| `app/reports/pipeline.py` | `ReportPipeline`: run → gather → draft → validate → assemble → persist; `revise()` for the HITL loop |
+| `app/reports/agents/report_agents.py` | `EvidenceAgent`, `SectionAgent`, `SpecializedDraftAgent` (parallel section workers), `ValidationAgent`, `TestingAgent`, `ReviewAgent`, plus an unused `DraftAgent` |
+| `app/reports/state.py` | Agent-owned `ReportState` with per-agent write ownership and a `change_log` |
+| `app/reports/exporter.py` | DOCX export: cover, overview, TOC field, headings, tables, chart note, citations, review summary |
+| `app/reports/eval.py` | Golden facts/questions, accuracy / time-saved / automation metrics |
+| `app/api/reports.py` | Thin HTTP routes + in-memory job registry |
+| `app/review/service.py` | Approve/edit/reject per claim + report sign-off (separate module per `03` §2) |
+| `app/review/qa/` | QA responder used by `POST /api/qa/ask` |
 
 ### 6.2 Pipeline (`pipeline.py`)
 
-Port SOW `pipeline.py:31-94`:
-1. `gather` (Phase 1 retriever)
-2. `draft` (Phase 2 writer)
-3. `validate` (Phase 2 validator)
-4. `assemble` (Phase 2 assembler)
-5. Auto-review: if any `UNSUPPORTED`, flag `needs_review`.
-6. Single auto-retry if review fails (SOW pattern).
+1. `gather` — `EvidenceAgent` → `gather_evidence()` (Phase 1 retriever)
+2. `draft` — `SpecializedDraftAgent`: one `SectionAgent` per heading, drafted in a `ThreadPoolExecutor` (`REPORT_AGENT_MAX_WORKERS`, default 3) and merged only after workers finish
+3. `validate` — `ValidationAgent` (claims) then `TestingAgent` (section completeness + resolvable `F#`/`C#` references)
+4. `assemble` — `assemble_sections()`
+5. Persist to PostgreSQL; status is always set to `needs_review`
+6. `revise()` — re-drafts targeted sections from `report_state` and reviewer feedback
+
+Progress/agent callbacks drive the async job's step + agent log.
 
 ### 6.3 HITL loop
 
-* `POST /api/reports/{id}/feedback {note, edited_sections}` → re-run writer with `reviewer_feedback` appended (SOW `proposal_agent.py:43-46`), re-validate, version `v1, v2, ...`.
-* Cap: 5 iterations + 600s timeout (SOW defaults).
+* `POST /api/reports/{id}/feedback {note, edited_sections}` → re-draft (state-aware when `report_state` exists), re-validate, bump `version`.
+* Cap: `MAX_REVISIONS = 5`; `REPORT_TIMEOUT_S = 600` is declared but not enforced by a watchdog.
+* `POST /api/reports/{id}/review {comments[]}` → `ReviewAgent` turns comments into persisted `revision_tasks`, sets status `revision_requested`.
 * `POST /api/reports/{id}/approve` → sign-off → DOCX export ready.
 
 ### 6.4 DOCX exporter (`exporter.py`)
 
-Port SOW `proposal_exporter.py:18-57`:
-* `python-docx` with cover page, headings, TOC, fact tables, embedded chart PNGs, citation footnotes.
-* Only `SUPPORTED + approved NEEDS_REVIEW` claims exported.
-* `UNSUPPORTED` quarantined in review table.
+* `python-docx` output: header/footer with page field, cover page, "Report Overview" with metadata table, updatable TOC field, one heading per section, claim table for table sections, chart specification note, citations list, review summary.
+* Only `SUPPORTED` + `NEEDS_REVIEW` claims are exported; `UNSUPPORTED` is skipped (quarantined).
+* Export path: `EXPORT_FOLDER` env (default `data/reports`); file `report-{id}.docx`.
+* `export_docx` raises at runtime if `python-docx` is missing.
 
 ### 6.5 API routes (`api/reports.py`)
 
-Thin HTTP only (per `03:12`), port SOW async job pattern:
+Thin HTTP only (per `03` §2):
 
 | Method | Route | What |
 |--------|-------|------|
+| `POST` | `/api/reports/generate` | Sync generation, returns the full result |
 | `POST` | `/api/reports/generate-job` | Start async generation → `{job_id}` |
-| `GET` | `/api/reports/job/{job_id}` | Poll: step/progress/status |
-| `GET` | `/api/reports/{id}` | Get report JSON |
-| `GET` | `/api/reports/{id}/claims` | Get claim list with validation status |
+| `GET` | `/api/reports/job/{job_id}` | Poll: step/progress/status/agent_logs |
+| `GET` | `/api/reports/{id}` | Get report JSON + claims |
+| `GET` | `/api/reports/{id}/claims` | Claim list with validation status + reasons |
+| `GET` | `/api/reports/{id}/state` | Versioned agent `ReportState` from `parameters_json` |
 | `POST` | `/api/reports/{id}/feedback` | User feedback → re-draft |
+| `POST` | `/api/reports/{id}/review` | Structured review comments → revision tasks |
 | `POST` | `/api/reports/{id}/approve` | Sign-off → export ready |
-| `GET` | `/api/reports/{id}/download.docx` | Download DOCX |
+| `GET` | `/api/reports/{id}/download.docx` | Download DOCX (requires status `approved`/`exported`) |
 
-## 7. Phase 4 — Frontend + metrics
+## 7. Frontend + metrics
 
-### 7.1 UI
+### 7.1 UI (as built — `frontend/src/pages/ReportSynthesisPage.tsx`)
 
-* Template dropdown (default Parliamentary Reply) + custom sections textarea.
-* Status poll: `queued → running → needs_review → approved → exported`.
-* Claim table with `SUPPORTED/NEEDS_REVIEW/UNSUPPORTED` flags.
-* Feedback text box for HITL.
-* Approve button → download DOCX.
+* Question textarea, report title input, template dropdown (Parliamentary reply / Geological summary).
+* `POST /api/reports/generate-job` then poll `GET /api/reports/job/{job_id}` every 900 ms; 5-step progress track.
+* Agent ledger: per-agent status + duration from `agent_logs`.
+* Result panel: section/claim/supported counts, then Approve, Download DOCX, or Open JSON.
 
-### 7.2 Eval metrics (per `01:55-59`)
+Not in the UI yet: custom-section editor, per-claim review table with `SUPPORTED/NEEDS_REVIEW/UNSUPPORTED` flags, feedback box, claim-level approve/edit/reject.
 
-* Time saved: `(manual - AI) / manual` on one reply draft.
-* Accuracy: golden 20 facts matched on `value+unit+period` + correct citation.
-* Automation: `automated steps / total steps`.
-* Method: golden set + `eval.py` on every run.
+### 7.2 Eval metrics (`eval.py`, per `01` §3.3)
 
-## 8. File map (new files only)
+* `evaluate_facts()` — golden facts matched on `value` + `unit`; `evaluate_claims()` — support rate.
+* `evaluate_time_saved()` — `(manual - ai) / manual`; `evaluate_automation()` — `automated / total`.
+* `run_full_evaluation()` logs all four. `GOLDEN_FACTS`/`GOLDEN_QUESTIONS` are placeholder FY2024-25 numbers; `backend/tests/golden_set.json` (1984 ECL/manpower facts) is the ingestion-derived set used by tests. Reconcile before quoting a score.
+
+## 8. File map
 
 ```text
 backend/app/
-  common/llm_client.py          LLM provider, JSON mode, retry/backoff
+  common/
+    llm_client.py               LLM provider, JSON mode, retry/backoff
+    validator.py                Mechanical claim validator (QA path)
   reports/
     __init__.py
     schemas.py                  Pydantic models
     templates.py                Template/style registry
+    state.py                    Agent-owned ReportState
     retrieval.py                Hybrid evidence gatherer (Phase 1)
-    writer.py                   LLM section drafter (Phase 2)
+    writer.py                   LLM section drafter (used by revise path)
     validate.py                 Mechanical claim validation (Phase 2)
-    assembler.py                Tables, charts, footnotes (Phase 2)
+    assembler.py                Tables, chart specs, citations (Phase 2)
     pipeline.py                 Orchestrator + HITL loop (Phase 3)
     exporter.py                 DOCX export (Phase 3)
+    eval.py                     Golden set + metrics
+    agents/
+      __init__.py
+      report_agents.py          Evidence/Section/Draft/Validation/Testing/Review agents
   review/
     __init__.py
-    models.py                   Review decision models
-  api/reports.py                Thin HTTP routes (Phase 3)
+    service.py                  Approve/edit/reject + sign-off
+    qa/
+      __init__.py
+      models.py                 QAClaim / QAResponse
+      responder.py              QA responder
+  api/reports.py                Thin HTTP routes
+  api/qa.py                     Thin HTTP route
 ```
 
 ## 9. Open questions
 
-1. **LLM provider**: Gemini (SOW default) vs Groq Llama 3.3 70B? Recommend provider-agnostic with Gemini default.
-2. **Default template**: `parliamentary_reply` — confirmed?
-3. **HITL cap**: 5 iterations + 600s timeout — confirmed?
-4. **ADR needed**: PostgreSQL vs SQLite conflict in `AGENTS.md` vs implemented.
+1. **LLM provider** — resolved in code: provider-agnostic with `gemini` default, `bedrock` supported via `LLM_PROVIDER` (`.env.example` ships `bedrock`).
+2. **Default template** — resolved: `parliamentary_reply`.
+3. **HITL cap** — `MAX_REVISIONS = 5` implemented; the 600 s timeout is a constant, not an enforced watchdog.
+4. **ADR** — resolved: `09_DECISIONS_LOG.md` records PostgreSQL over SQLite.
+5. Still open: render chart PNGs, expose per-claim review + feedback in the UI, reconcile the two golden sets, and wire `report_jobs` to the DB instead of the in-memory registry.

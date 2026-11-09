@@ -1,4 +1,4 @@
-# 10 — Operations Runbook (Ingest → Index → QA)
+# 10 — Operations Runbook (Ingest → Index → QA → Report)
 
 ## Goal
 
@@ -8,11 +8,16 @@ Run full loop:
 2. Ingest to artifacts (`merged.md` + `result.json`)
 3. Index to PostgreSQL + Qdrant
 4. Ask QA
+5. Generate → approve → export a report
 
 ## Start Services
 
-1. Start PostgreSQL container (example name used in this workspace): `docker start bigset-db-1`
-2. Start MINER Qdrant container: `docker start miner-qdrant`
+Dedicated MINER containers (names and credentials as in `README.md` / `.env.example`):
+
+1. Start PostgreSQL: `docker start miner-postgres` (created with user/password/db `bigset`/`bigset`/`miner_db`)
+2. Start MINER Qdrant: `docker start miner-qdrant` (host port `6334` → container `6333`)
+
+If a container does not exist yet, see the `docker run` commands in `README.md` ("Run it").
 
 ## Start Backend
 
@@ -53,6 +58,23 @@ Notes:
 Common input failure:
 
 1. Trailing comma in JSON causes 422. JSON must not contain trailing commas.
+2. With no evidence the endpoint returns 404 `"No reliable evidence found for this question."` — that is the refusal path, not a server error.
+
+## Report
+
+Requires indexed evidence; the report tables are created on first use (same `create_schema`).
+
+1. Sync: `POST /api/reports/generate` with `{ "question": "...", "report_type": "parliamentary_reply", "title": "..." }`
+2. Async: `POST /api/reports/generate-job` then poll `GET /api/reports/job/{job_id}`
+3. Inspect: `GET /api/reports/{report_id}` and `GET /api/reports/{report_id}/claims`
+4. Revise: `POST /api/reports/{report_id}/feedback` (max 5 revisions) or `POST /api/reports/{report_id}/review`
+5. Approve: `POST /api/reports/{report_id}/approve`
+6. Export: `GET /api/reports/{report_id}/download.docx` (writes `EXPORT_FOLDER`, default `backend/data/reports`)
+
+Notes:
+
+1. Report jobs are held in process memory — a backend restart loses job status for in-flight runs.
+2. A report with `UNSUPPORTED` claims still reaches `needs_review`; those claims are quarantined and never exported.
 
 ## Troubleshooting
 

@@ -1,50 +1,27 @@
-# M.I.N.E.R. Frontend — AI Query & Topic Explorer (scoped build)
+# M.I.N.E.R. Frontend
 
-This build implements two of the five M.I.N.E.R. screens end-to-end, per request:
+Minimal, backend-driven UI for the M.I.N.E.R. evidence pipeline. Two screens only:
 
-- **AI Query & Evidence Viewer** (`/ai-query`) — default route
-- **Topic Explorer & Clusters** (`/topics`)
+- **Ingestion Dashboard** (`/dashboard`) — uploads and batch readiness, read live from
+  `GET /api/documents/uploads` and `GET /api/documents/batches`.
+- **Report Synthesis** (`/reports`) — generates a cited report from indexed evidence
+  via `POST /api/reports/generate-job`, polls `GET /api/reports/job/{job_id}`, then
+  approves (`POST /api/reports/{id}/approve`) and downloads the DOCX
+  (`GET /api/reports/{id}/download.docx`).
 
-Dashboard & Ingestion, Human Review & Approval, and Report Synthesis are **excluded**
-from this build. Their nav tabs still render (to keep the full information
-architecture visible) but are disabled/unlinked rather than routed.
+There is no mock data and no simulated stream; every number on screen comes from the
+FastAPI backend.
 
-You can jump between the two implemented screens in either direction:
-- **AI Query → Topics**: "View topic clusters" link next to Extracted Context Vectors.
-- **Topics → AI Query**: "Load in AI Reader" on any archive card.
+## Backend
 
-## Real-time generation over WebSockets
+Set `VITE_API_BASE_URL` (see `src/api/client.ts`); it defaults to `http://localhost:8000`.
+The Vite dev server also proxies `/api` to `http://localhost:8000` (see `vite.config.ts`).
 
-The "Synthesize" action does not wait for one big response. It opens a
-WebSocket to `VITE_WS_BASE_URL + /ws/query`, sends `{ type: "query", query, filters }`,
-and renders every event the backend pushes back as it arrives:
+## Styling
 
-```
-status   → orchestrator stage label (e.g. "Retrieving vectors from Qdrant index")
-token    → next chunk of the answer text (renders immediately, with a live caret)
-vector   → one retrieved context vector (renders into "Extracted Context Vectors")
-citation → one inline citation reference
-evidence → the grounded source document (renders the right-hand document viewer)
-borehole → corroborating borehole logs
-seams    → seam thickness table rows
-done     → generation finished
-error    → surfaced inline, stream stops
-```
-
-See `src/types/index.ts` (`QueryStreamEvent`) for the exact shape and
-`src/hooks/useAIQueryStream.ts` for the client-side reducer.
-
-**No backend required to demo.** If the socket doesn't open within 1.2s (no
-backend running, or `VITE_WS_BASE_URL` unset), the hook automatically falls
-back to a scripted local timeline (`src/data/mockData.ts`) that emits the same
-event shape, so the full streaming experience — token-by-token synthesis,
-vectors populating, the evidence panel and borehole logs appearing — is
-visible standalone. A small "· local simulation" label appears in the
-telemetry panel whenever this fallback is active.
-
-To connect a real backend, implement a WebSocket endpoint at `/ws/query` that
-accepts the query payload and pushes `QueryStreamEvent` JSON frames, then set
-`VITE_WS_BASE_URL` (see `.env.example`).
+Tailwind v4 with the CMPDI portal design tokens declared in `src/index.css`
+(`@import "tailwindcss"` + `@theme`). The Report Synthesis screen ships its own
+scoped CSS in the same file.
 
 ## Project structure
 
@@ -53,34 +30,19 @@ frontend/
 ├── index.html
 ├── package.json
 ├── vite.config.ts
-├── tsconfig.json
-├── .env.example
-├── public/
 ├── src/
 │   ├── main.tsx
-│   ├── App.tsx                     ← only /ai-query and /topics are routed
-│   ├── index.css                   ← Tailwind v4 tokens (@theme)
+│   ├── App.tsx                     ← routes: /dashboard, /reports
+│   ├── index.css                   ← Tailwind v4 tokens (@theme) + report styles
 │   ├── api/
-│   │   ├── client.ts                REST/WS base URL config
-│   │   ├── query.ts                 WS URL + outbound payload builder
-│   │   └── topics.ts                 topic bundle fetch (mock-backed for now)
-│   ├── hooks/
-│   │   └── useAIQueryStream.ts       WebSocket client + local fallback simulator
+│   │   └── client.ts                REST base URL + apiGet helper
 │   ├── layouts/
 │   │   └── AppLayout.tsx
 │   ├── components/
-│   │   ├── layout/                   NationalEmblemBar, PortalHeader, NavStrip, Sidebar, Footer
-│   │   └── ui/                       Badge, Button, SearchInput, FilterPills, TopicCard,
-│   │                                  TopicChip, StreamingText, ConfidenceMeter
-│   ├── pages/
-│   │   ├── AIQueryPage.tsx
-│   │   └── TopicExplorerPage.tsx
-│   ├── data/
-│   │   └── mockData.ts               seed data + scripted WS event timeline
-│   ├── types/
-│   │   └── index.ts
-│   └── lib/
-│       └── cn.ts
+│   │   └── layout/                  NationalEmblemBar, PortalHeader, NavStrip, Footer
+│   └── pages/
+│       ├── DashboardPage.tsx
+│       └── ReportSynthesisPage.tsx
 ```
 
 ## Run it
@@ -90,5 +52,5 @@ npm install
 npm run dev
 ```
 
-Opens at `/ai-query`. Type a query and hit **Synthesize** — no backend needed
-to see the full streamed experience.
+Open the printed URL; `/dashboard` is the default route. Start the backend first so the
+data loads.

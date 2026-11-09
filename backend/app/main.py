@@ -8,35 +8,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-
-def _load_dotenv_if_present() -> None:
-    """Load backend/.env into process env.
-
-    Keep existing env vars (do not overwrite). No external deps.
-    """
-
-    backend_dir = Path(__file__).resolve().parent.parent
-    env_path = backend_dir / ".env"
-    if not env_path.exists():
-        return
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
+from starlette.middleware.cors import CORSMiddleware
 
 
 def create_app() -> FastAPI:
-    _load_dotenv_if_present()
+    from .common.env import load_environment
+    load_environment()
     app = FastAPI(
         title="M.I.N.E.R. Backend",
         description=(
@@ -47,6 +24,21 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+    )
+    frontend_origins = [
+        origin.strip()
+        for origin in os.getenv(
+            "FRONTEND_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ).split(",")
+        if origin.strip()
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=frontend_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/", tags=["system"])

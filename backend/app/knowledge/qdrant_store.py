@@ -23,7 +23,10 @@ class QdrantStore:
         elif path is not None:
             self.client = QdrantClient(path=path)
         else:
-            self.client = QdrantClient(url=url or os.getenv("QDRANT_URL", "http://localhost:6333"))
+            self.client = QdrantClient(
+                url=url or os.getenv("QDRANT_URL", "http://localhost:6334"),
+                timeout=float(os.getenv("QDRANT_TIMEOUT_S", "5")),
+            )
         self.collection = collection or os.getenv("QDRANT_COLLECTION", "miner_chunks")
 
     def ensure_collection(self, dimension: int) -> None:

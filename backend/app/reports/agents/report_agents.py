@@ -131,8 +131,15 @@ class SpecializedDraftAgent:
         self,
         state: ReportState,
         headings: list[str],
+        template=None,
+        custom_sections: list[str] | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> None:
+        if os.getenv("REPORT_DRAFT_MODE", "single").lower() == "single":
+            if template is None:
+                raise ValueError("A template is required for single-call report drafting")
+            DraftAgent().run(state, template, custom_sections)
+            return
         agents = [
             SectionAgent(
                 heading,

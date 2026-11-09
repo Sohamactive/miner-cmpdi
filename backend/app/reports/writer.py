@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.common.llm_client import generate_json
+from app.common.llm_client import generate_json_or_none
 from app.reports.schemas import EvidenceBundle, ReportSection
 from app.reports.templates import ReportTemplate, section_names
 
@@ -83,7 +83,13 @@ def write_sections(
     )
 
     logger.info("Writer LLM request: %d sections, %d evidence items", len(sections), len(evidence.facts) + len(evidence.chunks))
-    result = generate_json(prompt)
+    result = generate_json_or_none(prompt)
+    if result is None:
+        logger.warning(
+            "Writer LLM unavailable; using evidence-only fallback for %d sections",
+            len(sections),
+        )
+        return _fallback_sections(sections, evidence)
 
     raw_sections = result.get("sections", [])
     if not isinstance(raw_sections, list):
@@ -109,3 +115,34 @@ def write_sections(
 
     logger.info("Writer produced %d sections", len(parsed))
     return parsed
+
+
+def _fallback_sections(
+    sections: list[str], evidence: EvidenceBundle
+) -> list[ReportSection]:
+    """Create a cited extractive draft when the configured LLM is unavailable."""
+    facts = evidence.facts[:8]
+    chunks = evidence.chunks[:2]
+    references = [f"[F{i}]" for i in range(len(facts))]
+    paragraphs: list[str] = []
+    if facts:
+        summary = "; ".join(
+            f"{item.text[:180]} ({ref})"
+            for item, ref in zip(facts, references, strict=True)
+        )
+        paragraphs.append(f"Evidence-only summary: {summary}")
+    elif chunks:
+        paragraphs.append(f"Evidence-only context: {chunks[0].text[:500]} [C0]")
+    else:
+        paragraphs.append("Data not available.")
+
+    result: list[ReportSection] = []
+    for heading in sections:
+        result.append(
+            ReportSection(
+                heading=heading,
+                paragraphs=paragraphs.copy(),
+                fact_ids=references.copy(),
+            )
+        )
+    return result

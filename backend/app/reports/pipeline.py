@@ -83,7 +83,13 @@ class ReportPipeline:
         # Phase 2: Draft sections
         notify(1, "Drafting sections")
         headings = custom_sections or section_names(template)
-        SpecializedDraftAgent().run(state, headings, progress_callback=agent_callback)
+        SpecializedDraftAgent().run(
+            state,
+            template=template,
+            custom_sections=custom_sections,
+            headings=headings,
+            progress_callback=agent_callback,
+        )
         if "citations" in section_names(template):
             state.sections["citations"] = state.sections.get(
                 "citations",
@@ -138,6 +144,8 @@ class ReportPipeline:
                     "evidence_text": c.evidence_text,
                     "value": c.value,
                     "unit": c.unit,
+                    "document_id": c.document_id,
+                    "page_range": c.page_range,
                     "validation_status": c.validation_status.value,
                     "confidence": c.confidence,
                 }
@@ -233,6 +241,8 @@ class ReportPipeline:
                         "evidence_text": c.evidence_text,
                         "value": c.value,
                         "unit": c.unit,
+                        "document_id": c.document_id,
+                        "page_range": c.page_range,
                         "validation_status": c.validation_status.value,
                         "confidence": c.confidence,
                     }
@@ -326,6 +336,8 @@ class ReportPipeline:
                     "evidence_text": claim.evidence_text,
                     "value": claim.value,
                     "unit": claim.unit,
+                    "document_id": claim.document_id,
+                    "page_range": claim.page_range,
                     "validation_status": claim.validation_status.value,
                     "confidence": claim.confidence,
                 }

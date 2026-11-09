@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 from app.common.llm_client import generate_json, generate_json_or_none
@@ -59,6 +60,8 @@ def _semantic_to_item(result) -> EvidenceItem:
 
 def _generate_queries(question: str) -> list[str]:
     """Use LLM to generate search queries from the user question."""
+    if os.getenv("REPORT_LLM_QUERY_EXPANSION", "0").lower() not in {"1", "true", "yes"}:
+        return [question]
     prompt = QUERY_GEN_PROMPT.format(question=question)
     result = generate_json_or_none(prompt)
     if result is None:
@@ -89,13 +92,14 @@ def _search_facts(question: str, doc_ids: list[str] | None = None, limit: int = 
     """Search PostgreSQL facts. Try LLM-extracted keywords, then raw question."""
     session = create_session()
     try:
-        # Try to extract metric/entity/period from question via LLM
-        kw_prompt = (
-            "Extract mining keywords from this question as JSON. "
-            "Return: {\"metric\": \"...\" or null, \"entity\": \"...\" or null, \"period\": \"...\" or null}\n"
-            f"Question: {question}"
-        )
-        kw = generate_json_or_none(kw_prompt)
+        kw = None
+        if os.getenv("REPORT_LLM_KEYWORD_EXTRACTION", "0").lower() in {"1", "true", "yes"}:
+            kw_prompt = (
+                "Extract mining keywords from this question as JSON. "
+                "Return: {\"metric\": \"...\" or null, \"entity\": \"...\" or null, \"period\": \"...\" or null}\n"
+                f"Question: {question}"
+            )
+            kw = generate_json_or_none(kw_prompt)
         metric = kw.get("metric") if kw else None
         entity = kw.get("entity") if kw else None
         period = kw.get("period") if kw else None

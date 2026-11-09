@@ -160,8 +160,51 @@ def _bedrock_json_call(prompt: str, *, model: str | None = None) -> dict[str, An
     raise last_error  # type: ignore[misc]
 
 
+def _bedrock_mantle_json_call(prompt: str, *, model: str | None = None) -> dict[str, Any]:
+    from openai import OpenAI
+
+    api_key = os.getenv("MANTLE_API_KEY", "")
+    if not api_key or api_key.startswith("replace_with_"):
+        raise RuntimeError("MANTLE_API_KEY not configured")
+
+    timeout = int(os.getenv("LLM_TIMEOUT_MS", "120000")) / 1000
+    client = OpenAI(
+        base_url=os.getenv(
+            "MANTLE_BASE_URL",
+            "https://bedrock-mantle.us-east-1.api.aws/v1",
+        ),
+        api_key=api_key,
+        default_headers={"OpenAI-Project": os.getenv("MANTLE_PROJECT", "default")},
+        timeout=timeout,
+    )
+    model_name = model or os.getenv("MANTLE_MODEL", "openai.gpt-oss-120b")
+
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=int(os.getenv("MANTLE_MAX_TOKENS", "4096")),
+                temperature=0.1,
+            )
+            content = response.choices[0].message.content or ""
+            return json.loads(_extract_json_payload(content))
+        except Exception as error:
+            last_error = error
+            if not _is_retryable_error(error):
+                raise
+            suggested_delay = _extract_retry_delay(error)
+            backoff = suggested_delay if suggested_delay else BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
+            if attempt < MAX_RETRIES:
+                time.sleep(min(backoff, 60.0))
+    raise last_error  # type: ignore[misc]
+
+
 def _call_provider(prompt: str, *, model: str | None = None) -> dict[str, Any]:
     provider = os.getenv("LLM_PROVIDER", "gemini").lower()
+    if provider in {"bedrock_mantle", "mantle"}:
+        return _bedrock_mantle_json_call(prompt, model=model)
     if provider == "bedrock":
         return _bedrock_json_call(prompt, model=model)
     return _gemini_json_call(prompt, model=model)
@@ -169,7 +212,13 @@ def _call_provider(prompt: str, *, model: str | None = None) -> dict[str, Any]:
 
 def generate_json(prompt: str, *, model: str | None = None, list_key: str | None = None) -> dict[str, Any]:
     """Call LLM and return parsed JSON. Raises on failure."""
-    logger.info("LLM request -> provider=%s, model=%s, prompt_length=%d", os.getenv("LLM_PROVIDER", "gemini"), model or os.getenv("LLM_MODEL", "gemini-2.5-flash"), len(prompt))
+    provider = os.getenv("LLM_PROVIDER", "gemini")
+    configured_model = (
+        os.getenv("MANTLE_MODEL", "openai.gpt-oss-120b")
+        if provider.lower() in {"bedrock_mantle", "mantle"}
+        else model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    )
+    logger.info("LLM request -> provider=%s, model=%s, prompt_length=%d", provider, configured_model, len(prompt))
 
     payload = _call_provider(prompt, model=model)
 

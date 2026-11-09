@@ -6,15 +6,16 @@
 ## 2. Current proposals (all open)
 - FastAPI monolith + React + PostgreSQL structured evidence store (implemented for RAG) + Qdrant collection (`miner_chunks`) as rebuildable semantic mirror
 - Facts-first QA; mechanical (code, not LLM) validation; 1-then-2 report templates
-- Ingestion internals: see implemented prototype in `docs/04_INGESTION_PIPELINE.md` (PDF-only v1, skip-after-fallbacks; 1-page retry is optional future)
+- Ingestion internals: see implemented prototype in `docs/04_INGESTION_PIPELINE.md` (multi-modal: PDF/XLSX/XLS/CSV/images; skip-after-fallbacks; 1-page retry is optional future)
 - None frozen — confirm before building on them.
 
 ## 3. What exists (don't rebuild)
-- `backend/` uv project (`docling`, `easyocr`, `fastapi[standard]`, `pymupdf`); implemented `backend/app/ingestion/` (config/splitter/converter/pdf_runner/pdf_merge/logging) + `backend/app/api/documents.py` + `backend/app/main.py`
-- Docs 00–03 (DRAFT) + `04_INGESTION_PIPELINE.md` (implemented prototype). Notion SIH tracker mirrors doc progress.
+- `backend/` uv project (`docling`, `easyocr`, `fastapi[standard]`, `pymupdf`, `sqlalchemy`, `psycopg[binary]`, `qdrant-client`, `fastembed`, `python-docx`, `matplotlib`, `boto3`, `google-genai`); implemented `backend/app/ingestion/` (config/splitter/converter/dispatcher/table_runner/image_runner/pdf_runner/pdf_merge/logging) + `backend/app/extraction/` + `backend/app/knowledge/` + `backend/app/reports/` (incl. `agents/`) + `backend/app/review/` (incl. `qa/`) + `backend/app/common/` + `backend/app/api/{documents,reports,qa}.py` + `backend/app/main.py`. `backend/app/analytics/` is still empty.
+- `frontend/` React 19 + Vite + TypeScript + Tailwind v4, two screens (Ingestion Dashboard, Report Synthesis).
+- Docs 00–06, 09, 10 (DRAFT) + `04_INGESTION_PIPELINE.md` (implemented prototype). Notion SIH tracker mirrors doc progress.
 
 ## 4. Boundaries
-Backend modules per 03 §2 (`api/ingestion/extraction/knowledge/qa/analytics/reports/review/common/`). Frontend in `frontend/` (not scaffolded yet). Never cross module lines without noting it in your final summary.
+Backend modules per 03 §2 (`api/ingestion/extraction/knowledge/qa/analytics/reports/review/common/`). Frontend in `frontend/` (two screens). Never cross module lines without noting it in your final summary; the QA responder currently sits in `review/qa/` while `qa/` is empty.
 
 ## 5. Workflow per task
 1. Inspect (read/grep) relevant modules + docs before writing.

@@ -6,7 +6,6 @@ Routes are thin. Real work lives in app.ingestion.* (per 03_ARCHITECTURE.md).
 from __future__ import annotations
 
 import json
-import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -23,28 +22,11 @@ from app.ingestion.pdf_splitter import sha256_of
 router = APIRouter()
 
 
-def _load_dotenv_if_present() -> None:
-    """Load backend/.env into env without overwriting existing vars."""
-    backend_dir = Path(__file__).resolve().parent.parent.parent
-    env_path = backend_dir / ".env"
-    if not env_path.exists():
-        return
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
 # In-memory indexing jobs (same pattern as reports jobs). Safe: no destructive ops.
 index_jobs: dict[str, dict] = {}
 index_jobs_lock = Lock()
+process_jobs: dict[str, dict] = {}
+process_jobs_lock = Lock()
 
 
 def _scan_uploads() -> list[dict]:
@@ -112,7 +94,8 @@ def index_now(doc_id: str, body: IndexJobRequest | None = None) -> JSONResponse:
 
     Safe: upsert only. No deletes.
     """
-    _load_dotenv_if_present()
+    from app.common.env import load_environment
+    load_environment()
 
     batch_dir = _batches_dir(doc_id)
     merged_path = batch_dir / "merged.md"
@@ -176,7 +159,8 @@ async def upload_document(file: UploadFile = File(...)) -> JSONResponse:
         )
 
     uploads = _uploads_dir()
-    tmp_path = uploads / f"tmp_{file.filename}"
+    safe_filename = Path(file.filename).name
+    tmp_path = uploads / f"tmp_{uuid.uuid4().hex}_{safe_filename}"
 
     # Save upload to temp first
     data = await file.read()
@@ -236,6 +220,84 @@ def process_document(
     return JSONResponse(result)
 
 
+@router.post("/{doc_id}/process-job")
+def start_process_job(
+    doc_id: str,
+    workers: int | None = None,
+    preset: str | None = None,
+    device: str = "auto",
+    auto_detect: bool = True,
+) -> JSONResponse:
+    """Run document ingestion asynchronously and expose coarse stage progress."""
+    file_path = _find_stored_file(doc_id)
+    if not file_path or not file_path.exists():
+        raise HTTPException(
+            status_code=404, detail=f"Unknown doc_id or missing upload: {doc_id}"
+        )
+
+    job_id = uuid.uuid4().hex
+    with process_jobs_lock:
+        process_jobs[job_id] = {
+            "job_id": job_id,
+            "doc_id": doc_id,
+            "filename": file_path.name,
+            "status": "queued",
+            "progress": 0,
+            "step_label": "Queued for ingestion",
+            "error": None,
+            "result": None,
+            "created_at": time.time(),
+            "updated_at": time.time(),
+        }
+
+    def _set(**updates) -> None:
+        with process_jobs_lock:
+            if job_id not in process_jobs:
+                return
+            process_jobs[job_id].update(updates)
+            process_jobs[job_id]["updated_at"] = time.time()
+
+    def _run() -> None:
+        try:
+            _set(status="running", progress=10, step_label="Reading document")
+            result = run_ingest(
+                file_path,
+                preset=preset,
+                device=device,
+                verbose=False,
+                resume=True,
+                max_workers=workers,
+                auto_detect=auto_detect,
+            )
+            _set(
+                status="done",
+                progress=100,
+                step_label="Ingestion complete",
+                result=result,
+            )
+        except Exception as exc:
+            _set(
+                status="failed",
+                progress=100,
+                step_label="Ingestion failed",
+                error=str(exc),
+            )
+
+    Thread(target=_run, daemon=True).start()
+    return JSONResponse(
+        {"job_id": job_id, "status_url": f"/api/documents/process-job/{job_id}"}
+    )
+
+
+@router.get("/process-job/{job_id}")
+def get_process_job(job_id: str) -> JSONResponse:
+    with process_jobs_lock:
+        job = process_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Ingestion job not found")
+    return JSONResponse(job)
+
+
 @router.get("/{doc_id}/result")
 def get_result(doc_id: str) -> JSONResponse:
     """Return the last saved result.json for this doc_id."""
@@ -278,7 +340,8 @@ def start_index_all_job(body: IndexJobRequest | None = None) -> JSONResponse:
 
     Safe: upsert only. No deletes. Runs sequentially to reduce RAM spikes.
     """
-    _load_dotenv_if_present()
+    from app.common.env import load_environment
+    load_environment()
     ready = [b for b in _scan_batches() if b.get("ready_to_index")]
     job_id = uuid.uuid4().hex
     with index_jobs_lock:
@@ -351,7 +414,8 @@ def start_index_job(doc_id: str, body: IndexJobRequest | None = None) -> JSONRes
     Does NOT run ingestion. Requires data/batches/{doc_id}/merged.md and result.json.
     Async job (thread) so request does not block.
     """
-    _load_dotenv_if_present()
+    from app.common.env import load_environment
+    load_environment()
 
     batch_dir = _batches_dir(doc_id)
     merged_path = batch_dir / "merged.md"

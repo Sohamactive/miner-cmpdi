@@ -1,27 +1,18 @@
 #!/usr/bin/env python3
 """Index all complete batch directories into PostgreSQL and Qdrant."""
 import sys
-import os
 from pathlib import Path
 
-# Load .env file from backend directory
 backend_dir = Path(__file__).parent.parent
-env_file = backend_dir / ".env"
-if env_file.exists():
-    with open(env_file) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                os.environ[key.strip()] = value.strip()
-
 sys.path.insert(0, str(backend_dir))
 
+from app.common.env import load_environment
 from app.knowledge.indexer import index_ingestion_artifacts
 from app.knowledge.embeddings import FastEmbedProvider
 from app.knowledge.qdrant_store import QdrantStore
 
 def main():
+    load_environment()
     batches_dir = backend_dir / "data" / "batches"
     if not batches_dir.exists():
         print(f"Batches directory not found: {batches_dir}")

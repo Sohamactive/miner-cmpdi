@@ -44,20 +44,20 @@ The proposed system should significantly modernize CMPDI/CIL subsidiaries report
 ## 3. Non-functional requirements (DRAFT — detail later)
 
 ### 3.1 Traceability + validation
-- Traceability: every numeric claim links doc → page → evidence text/cell, shown as citation chips on text, table rows, and chart points. Page markers (`<!-- page:N -->`) preserved from ingestion so citations resolve exactly.
+- Traceability: every numeric claim links doc → page → evidence text/cell, shown as citation chips on text, table rows, and chart points. Ingestion preserves batch/page-range markers (`<!-- batch:NNN pages:N-M -->`, `<!-- page-range:N-M -->`) in `merged.md`, and the chunker copies them onto every chunk. Granularity today is batch/page-range, not exact per-page: `<!-- page:N -->` markers would need page-wise runner artifacts (future work, `04` §10).
 - Validation is mechanical (code, not AI): value-in-evidence, unit/year/entity match, citation present → SUPPORTED / NEEDS_REVIEW / UNSUPPORTED.
 - Chat policy: SUPPORTED shows with citation; NEEDS_REVIEW shows with yellow flag; UNSUPPORTED shows no number — refusal ("no reliable evidence"). AI drafts, code validates.
 - Reports: UNSUPPORTED quarantined in review table (delete/fix), never exported. Final DOCX holds approved SUPPORTED only.
 
 ### 3.2 Phased delivery
-PS-mandated phases (analysis → digitization → build → test → integrate → train → enhance) mapped to our extended multi-day plan (detail in 05). Demo shows staged progress, not big-bang.
+PS-mandated phases (analysis → digitization → build → test → integrate → train → enhance) mapped to our extended multi-day plan (requirement/scope tracking in `02_REQUIREMENTS.md`, architecture in `03_ARCHITECTURE.md`). Demo shows staged progress, not big-bang.
 
 ### 3.3 Quantified time / accuracy / automation %
 - Time saved = (manual − AI) / manual on one reply draft.
 - Accuracy = golden facts matched on value+unit+period; grounded answers with correct citation (incl. refusal cases).
 - Automation = automated workflow steps / total steps.
-- Method: one-time manual golden set (20 facts / 20 questions), then automated `eval.py` on every run (detail in 10).
+- Method: one-time manual golden set, then automated `eval.py` on every run (detail in `06` §7.2; implementation `backend/app/reports/eval.py`). Note: `eval.py` currently carries placeholder FY2024-25 `GOLDEN_FACTS`/`GOLDEN_QUESTIONS` lists, while `backend/tests/golden_set.json` holds the ingestion-derived 1984 fact set used by `tests/test_golden_set.py`. Reconciling the two is open work.
 
 ### 3.4 Scalable foundation
-Modular monolith; schema portable beyond SQLite; queued batch ingestion (fresh process per batch + timeout + resume) so 200+ page reports don't kill the job. Full 1000-doc scale is roadmap, not demo (detail in 03).
+Modular monolith; SQLAlchemy models keep the schema portable across relational engines (PostgreSQL today); queued batch ingestion (fresh process per batch + timeout + resume) so 200+ page reports don't kill the job. Full 1000-doc scale is roadmap, not demo (detail in 03).
 

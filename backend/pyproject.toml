@@ -11,6 +11,7 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "google-genai>=1.0.0",
     "matplotlib>=3.9.0",
+    "openai>=1.0.0",
     "psycopg[binary]>=3.3.5",
     "python-docx>=1.1.0",
     "pymupdf>=1.28.2",

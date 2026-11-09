@@ -6,10 +6,11 @@ import json
 import os
 import re
 import hashlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import and_, create_engine, select
 from sqlalchemy.orm import Session
 
 from app.knowledge.chunking import Chunk
@@ -20,8 +21,19 @@ def database_url() -> str:
     return os.getenv("DATABASE_URL", "postgresql+psycopg://localhost:5432/miner_db")
 
 
+@lru_cache(maxsize=4)
+def _engine(url: str):
+    connect_timeout = int(os.getenv("POSTGRES_CONNECT_TIMEOUT_S", "5"))
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_timeout=connect_timeout,
+        connect_args={"connect_timeout": connect_timeout},
+    )
+
+
 def create_session(url: str | None = None) -> Session:
-    return Session(create_engine(url or database_url(), pool_pre_ping=True))
+    return Session(_engine(url or database_url()))
 
 
 def create_schema(session: Session) -> None:
@@ -275,6 +287,42 @@ def search_facts(
     if period:
         query = query.where(Fact.period == period)
     return list(session.scalars(query))
+
+
+def search_chunks(
+    session: Session,
+    query_text: str,
+    *,
+    document_id: str | None = None,
+    limit: int = 5,
+) -> list[ChunkRecord]:
+    """Find grounded text chunks when semantic retrieval is unavailable or weak."""
+    stop_words = {
+        "about", "does", "from", "have", "what", "when", "where", "which",
+        "with", "would", "could", "should", "their", "there", "this", "that",
+        "tell", "show", "give", "information", "statistics",
+    }
+    terms = list(dict.fromkeys(
+        word.lower()
+        for word in re.findall(r"[a-zA-Z0-9]{4,}", query_text)
+        if word.lower() not in stop_words
+    ))
+    if not terms:
+        return []
+
+    filters = [ChunkRecord.text.ilike(f"%{term}%") for term in terms[:6]]
+    query = select(ChunkRecord).where(and_(*filters)).limit(max(limit * 5, 20))
+    if document_id:
+        query = query.where(ChunkRecord.document_id == document_id)
+    rows = list(session.scalars(query))
+    return sorted(
+        rows,
+        key=lambda row: sum(
+            row.text.lower().count(term)
+            for term in terms[:6]
+        ),
+        reverse=True,
+    )[:limit]
 
 
 def load_docling_json(path: str | Path) -> dict:

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 
-import { apiGet } from '@/api/client'
+import { apiGet, apiRequest } from '@/api/client'
 
 type UploadItem = {
   doc_id: string
@@ -22,6 +23,17 @@ type BatchItem = {
   modified_at_epoch?: number
 }
 
+type IngestionJob = {
+  id: string
+  filename: string
+  status: 'uploading' | 'queued' | 'running' | 'done' | 'failed'
+  progress: number
+  step_label: string
+  error?: string | null
+}
+
+const SUPPORTED_FORMATS = '.pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.tiff,.bmp,.webp'
+
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -41,6 +53,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
+  const [ingestionJobs, setIngestionJobs] = useState<IngestionJob[]>([])
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function refresh() {
     setLoading(true)
@@ -63,6 +78,69 @@ export default function DashboardPage() {
   useEffect(() => {
     void refresh()
   }, [])
+
+  function updateJob(id: string, updates: Partial<IngestionJob>) {
+    setIngestionJobs((current) => current.map((job) => job.id === id ? { ...job, ...updates } : job))
+  }
+
+  async function processFile(file: File) {
+    const jobId = `${file.name}-${file.lastModified}-${Math.random()}`
+    setIngestionJobs((current) => [
+      ...current,
+      { id: jobId, filename: file.name, status: 'uploading', progress: 3, step_label: 'Uploading file' },
+    ])
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadResponse = await apiRequest('/api/documents/upload', { method: 'POST', body: formData })
+      if (!uploadResponse.ok) throw new Error(await uploadResponse.text() || `Upload failed (${uploadResponse.status})`)
+      const uploaded = await uploadResponse.json() as { doc_id: string }
+      updateJob(jobId, { status: 'queued', progress: 5, step_label: 'Queued for ingestion' })
+
+      const processResponse = await apiRequest(`/api/documents/${uploaded.doc_id}/process-job`, { method: 'POST' })
+      if (!processResponse.ok) throw new Error(await processResponse.text() || `Could not start ingestion (${processResponse.status})`)
+      const started = await processResponse.json() as { job_id: string }
+
+      let finished = false
+      while (!finished) {
+        await new Promise((resolve) => window.setTimeout(resolve, 900))
+        const statusResponse = await apiRequest(`/api/documents/process-job/${started.job_id}`)
+        if (!statusResponse.ok) throw new Error(`Could not read ingestion progress (${statusResponse.status})`)
+        const status = await statusResponse.json() as { status: IngestionJob['status']; progress: number; step_label: string; error?: string | null }
+        updateJob(jobId, { status: status.status, progress: status.progress, step_label: status.step_label, error: status.error })
+        finished = status.status === 'done' || status.status === 'failed'
+      }
+      await refresh()
+    } catch (requestError) {
+      updateJob(jobId, {
+        status: 'failed',
+        progress: 100,
+        step_label: 'Ingestion failed',
+        error: requestError instanceof Error ? requestError.message : 'Unable to ingest file.',
+      })
+    }
+  }
+
+  function startUpload(files: FileList | File[]) {
+    const selected = Array.from(files)
+    if (selected.length === 0) return
+    setError('')
+    void selected.reduce(
+      (chain, file) => chain.then(() => processFile(file)),
+      Promise.resolve(),
+    )
+  }
+
+  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files) startUpload(event.target.files)
+    event.target.value = ''
+  }
+
+  function onDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setDragActive(false)
+    startUpload(event.dataTransfer.files)
+  }
 
   const batchById = useMemo(() => {
     const m = new Map<string, BatchItem>()
@@ -119,19 +197,62 @@ export default function DashboardPage() {
         </div>
         <div className="flex flex-wrap items-center gap-[var(--spacing-space-sm)]">
           <Link
-            to="/ai-query"
-            className="px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] font-semibold text-[13px] leading-[18px] tracking-[0.01em] rounded-[var(--radius-sm)] shadow-sm flex items-center gap-[var(--spacing-space-xs)] transition-colors bg-secondary text-on-secondary hover:opacity-95"
-          >
-            <span className="material-symbols-outlined text-[18px]">quick_reference_all</span>
-            <span>Launch AI Query</span>
-          </Link>
-          <Link
             to="/reports"
             className="px-[var(--spacing-space-md)] py-[var(--spacing-space-xs)] font-semibold text-[13px] leading-[18px] tracking-[0.01em] rounded-[var(--radius-sm)] shadow-sm flex items-center gap-[var(--spacing-space-xs)] transition-colors bg-primary text-on-primary hover:bg-primary-container"
           >
             <span className="material-symbols-outlined text-[18px]">upload_file</span>
             <span>Report Synthesis</span>
           </Link>
+        </div>
+      </section>
+
+      <section className="w-full px-[var(--spacing-gutter)] pt-[var(--spacing-space-lg)]">
+        <div
+          className={`border-2 border-dashed rounded-[var(--radius-sm)] p-[var(--spacing-space-lg)] transition-colors ${dragActive ? 'border-secondary bg-secondary-container' : 'border-outline-variant bg-surface-container-lowest'}`}
+          onDragOver={(event) => { event.preventDefault(); setDragActive(true) }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={onDrop}
+        >
+          <input ref={fileInputRef} className="hidden" type="file" accept={SUPPORTED_FORMATS} multiple onChange={onFileChange} />
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-[var(--spacing-space-md)]">
+            <div className="flex items-start gap-[var(--spacing-space-md)]">
+              <div className="w-12 h-12 rounded-[var(--radius-sm)] bg-primary-container text-on-primary flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[25px]">cloud_upload</span>
+              </div>
+              <div>
+                <div className="text-[17px] leading-[24px] font-bold text-primary">Ingest source documents</div>
+                <p className="mt-1 text-[13px] leading-[19px] text-on-surface-variant">
+                  Drop PDFs, spreadsheets, or images here. The backend will save, parse, merge, and prepare each file for indexing.
+                </p>
+                <p className="mt-2 text-[11px] leading-[16px] font-mono text-outline">PDF · XLSX · XLS · CSV · PNG · JPG · TIFF · BMP · WEBP</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-[var(--spacing-space-md)] py-[var(--spacing-space-sm)] rounded-[var(--radius-sm)] bg-primary text-on-primary text-[13px] font-semibold shadow-sm hover:bg-primary-container"
+            >
+              Choose files
+            </button>
+          </div>
+          {ingestionJobs.length > 0 && (
+            <div className="mt-[var(--spacing-space-lg)] flex flex-col gap-[var(--spacing-space-sm)]">
+              {ingestionJobs.slice(-6).map((job) => (
+                <div key={job.id} className="border-t border-outline-variant pt-[var(--spacing-space-sm)]">
+                  <div className="flex items-center justify-between gap-3 text-[12px]">
+                    <span className="font-semibold text-on-surface truncate">{job.filename}</span>
+                    <span className={`font-mono ${job.status === 'failed' ? 'text-error' : job.status === 'done' ? 'text-secondary' : 'text-on-surface-variant'}`}>{job.status}</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-surface-container-high overflow-hidden">
+                    <div className={`h-full transition-all duration-500 ${job.status === 'failed' ? 'bg-error' : 'bg-secondary'}`} style={{ width: `${job.progress}%` }} />
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3 text-[11px] font-mono text-on-surface-variant">
+                    <span>{job.error || job.step_label}</span><span>{job.progress}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

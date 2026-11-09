@@ -25,6 +25,7 @@ PIPELINE_STEPS = [
     "Drafting sections",
     "Validating claims",
     "Assembling report",
+    "Saving report",
     "Done",
 ]
 
@@ -135,7 +136,7 @@ async def generate_report_job(data: GenerateRequest) -> JSONResponse:
                 agent_callback=on_agent,
             )
             result.update(_report_links(result["report_id"]))
-            _set_job_state(job_id, status="needs_review", step_index=4, step_label=PIPELINE_STEPS[4], progress=100, result=result)
+            _set_job_state(job_id, status="needs_review", step_index=5, step_label=PIPELINE_STEPS[5], progress=100, result=result)
         except Exception as exc:
             _set_job_state(job_id, status="failed", error=str(exc))
 
@@ -238,6 +239,8 @@ async def get_report(report_id: int) -> JSONResponse:
                     "evidence_text": c.evidence_text,
                     "value": c.value,
                     "unit": c.unit,
+                    "document_id": c.document_id,
+                    "page_range": c.page_range,
                     "validation_status": c.validation_status,
                     "confidence": c.confidence,
                 }
@@ -264,6 +267,8 @@ async def get_report_claims(report_id: int) -> JSONResponse:
                 "evidence_text": c.evidence_text,
                 "value": c.value,
                 "unit": c.unit,
+                "document_id": c.document_id,
+                "page_range": c.page_range,
                 "validation_status": c.validation_status,
                 "validation_reasons": json.loads(c.validation_reasons or "[]"),
                 "confidence": c.confidence,
